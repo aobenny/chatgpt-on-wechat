@@ -5,6 +5,7 @@ Agent Initializer - Handles agent initialization logic
 import os
 import asyncio
 import datetime
+import threading
 import time
 from typing import Optional, List
 
@@ -12,6 +13,9 @@ from agent.protocol import Agent
 from agent.tools import ToolManager
 from common.log import logger
 from common.utils import expand_path
+
+# Module-level lock to serialize scheduler init across concurrent sessions
+_scheduler_init_lock = threading.Lock()
 
 
 class AgentInitializer:
@@ -144,7 +148,15 @@ class AgentInitializer:
             from agent.memory import get_conversation_store
             store = get_conversation_store()
             max_turns = conf().get("agent_max_context_turns", 20)
-            restore_turns = max(3, max_turns // 6)
+            # Scheduler tasks run on a stable isolated session per task and
+            # can fire many times a day; a smaller restore window keeps prompt
+            # cost bounded while still letting the agent see "last few" runs
+            # for trend / dedup style logic. Regular chat sessions keep the
+            # original heuristic so user dialogues feel continuous.
+            if session_id.startswith("scheduler_"):
+                restore_turns = max(1, max_turns // 5)
+            else:
+                restore_turns = max(3, max_turns // 6)
             saved = store.load_messages(session_id, max_turns=restore_turns)
             if saved:
                 filtered = self._filter_text_only_messages(saved)
@@ -374,7 +386,18 @@ class AgentInitializer:
                     tools.append(tool)
             except Exception as e:
                 logger.warning(f"[AgentInitializer] Failed to load tool {tool_name}: {e}")
-        
+
+        # Add MCP tools (snapshot to avoid races with the background loader)
+        mcp_tools_snapshot = list(tool_manager._mcp_tool_instances.items())
+        if mcp_tools_snapshot:
+            for _, mcp_tool in mcp_tools_snapshot:
+                tools.append(mcp_tool)
+            if session_id is None:
+                names = [name for name, _ in mcp_tools_snapshot]
+                logger.info(
+                    f"[AgentInitializer] Added {len(names)} MCP tool(s): {names}"
+                )
+
         # Add memory tools
         if memory_tools:
             tools.extend(memory_tools)
@@ -387,16 +410,23 @@ class AgentInitializer:
         return tools
     
     def _initialize_scheduler(self, tools: List, session_id: Optional[str] = None):
-        """Initialize scheduler service if needed"""
+        """Initialize scheduler service if needed.
+
+        Serialize the check-and-set under a module-level lock so concurrent
+        first-time session inits cannot each create a new SchedulerService
+        (which would leak background scanning threads).
+        """
         if not self.agent_bridge.scheduler_initialized:
-            try:
-                from agent.tools.scheduler.integration import init_scheduler
-                if init_scheduler(self.agent_bridge):
-                    self.agent_bridge.scheduler_initialized = True
-                    if session_id is None:
-                        logger.info("[AgentInitializer] Scheduler service initialized")
-            except Exception as e:
-                logger.warning(f"[AgentInitializer] Failed to initialize scheduler: {e}")
+            with _scheduler_init_lock:
+                if not self.agent_bridge.scheduler_initialized:
+                    try:
+                        from agent.tools.scheduler.integration import init_scheduler
+                        if init_scheduler(self.agent_bridge):
+                            self.agent_bridge.scheduler_initialized = True
+                            if session_id is None:
+                                logger.info("[AgentInitializer] Scheduler service initialized")
+                    except Exception as e:
+                        logger.warning(f"[AgentInitializer] Failed to initialize scheduler: {e}")
         
         # Inject scheduler dependencies
         if self.agent_bridge.scheduler_initialized:
@@ -549,19 +579,22 @@ class AgentInitializer:
 
         def _daily_flush_loop():
             import random
+            last_run_date = None  # Track last successful run date to prevent same-day re-trigger
             while True:
                 try:
                     now = datetime.datetime.now()
                     jitter_min = random.randint(50, 55)
                     jitter_sec = random.randint(0, 59)
                     target = now.replace(hour=23, minute=jitter_min, second=jitter_sec, microsecond=0)
-                    if target <= now:
+                    # Always schedule for tomorrow if we already ran today, or if target time has passed
+                    if target <= now or (last_run_date == now.date()):
                         target += datetime.timedelta(days=1)
                     wait_seconds = (target - now).total_seconds()
                     logger.info(f"[DailyFlush] Next flush at {target.strftime('%Y-%m-%d %H:%M:%S')} (in {wait_seconds/3600:.1f}h)")
                     time.sleep(wait_seconds)
 
                     self._flush_all_agents()
+                    last_run_date = datetime.datetime.now().date()
                 except Exception as e:
                     logger.warning(f"[DailyFlush] Error in daily flush loop: {e}")
                     time.sleep(3600)

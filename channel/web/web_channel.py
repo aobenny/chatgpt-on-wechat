@@ -9,6 +9,7 @@ import threading
 import time
 import uuid
 from queue import Queue, Empty
+from typing import Tuple
 
 import web
 
@@ -88,6 +89,95 @@ def _get_upload_dir() -> str:
     tmp_dir = os.path.join(ws_root, "tmp")
     os.makedirs(tmp_dir, exist_ok=True)
     return tmp_dir
+
+
+def _sanitize_upload_relative_path(relative_path: str) -> str:
+    """Normalize relative upload path and reject escapes / absolute paths."""
+    relative_path = (relative_path or "").replace("\\", "/").strip("/")
+    if not relative_path:
+        raise ValueError("Empty relative path")
+    parts = []
+    for part in relative_path.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            raise ValueError("Invalid relative path")
+        parts.append(part)
+    if not parts:
+        raise ValueError("Invalid relative path")
+    norm_path = "/".join(parts)
+    if os.path.isabs(norm_path):
+        raise ValueError("Invalid relative path")
+    return norm_path
+
+
+def _sanitize_upload_id(upload_id: str) -> str:
+    """Allow only simple batch ids for directory uploads."""
+    sanitized = "".join(ch for ch in (upload_id or "") if ch.isalnum() or ch in ("-", "_"))
+    if not sanitized:
+        raise ValueError("Invalid upload id")
+    return sanitized[:80]
+
+
+def _is_within_directory(root_path: str, target_path: str) -> bool:
+    try:
+        return os.path.commonpath([root_path, target_path]) == root_path
+    except ValueError:
+        return False
+
+
+def _resolve_upload_path(upload_root: str, relative_path: str) -> Tuple[str, str]:
+    """Resolve a relative upload path under upload_root and reject escapes."""
+    safe_rel_path = _sanitize_upload_relative_path(relative_path)
+    upload_root_real = os.path.realpath(upload_root)
+    save_path = os.path.realpath(os.path.join(upload_root_real, *safe_rel_path.split("/")))
+    if not _is_within_directory(upload_root_real, save_path):
+        raise ValueError("Invalid directory upload path")
+    return safe_rel_path, save_path
+
+
+def _read_uploaded_file_bytes(file_obj) -> bytes:
+    """Return uploaded content as bytes across web.py upload object variants."""
+    if isinstance(file_obj, bytes):
+        return file_obj
+    if isinstance(file_obj, str):
+        return file_obj.encode("utf-8")
+
+    content = None
+
+    if hasattr(file_obj, "file") and hasattr(file_obj.file, "read"):
+        content = file_obj.file.read()
+    elif hasattr(file_obj, "read"):
+        content = file_obj.read()
+    elif hasattr(file_obj, "value"):
+        content = file_obj.value
+
+    if content is None:
+        raise ValueError("Unable to read uploaded file content")
+    if isinstance(content, bytes):
+        return content
+    if isinstance(content, str):
+        return content.encode("utf-8")
+    raise TypeError(f"Unsupported uploaded content type: {type(content).__name__}")
+
+
+def _raw_web_input():
+    """Return unprocessed multipart form data when web.py exposes rawinput."""
+    rawinput = getattr(getattr(web, "webapi", None), "rawinput", None)
+    if not callable(rawinput):
+        raise RuntimeError("web.py rawinput is not available")
+    try:
+        return rawinput(method="post")
+    except TypeError:
+        return rawinput()
+
+
+def _ensure_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 
 def _generate_session_title(user_message: str, assistant_reply: str = "") -> str:
@@ -208,9 +298,24 @@ class WebChannel(ChatChannel):
 
             # Fallback: polling mode
             if session_id in self.session_queues:
+                content = reply.content if reply.content is not None else ""
+                # Skip file:// IMAGE_URL/FILE replies originating from an SSE-enabled
+                # request: they were already pushed via the `file_to_send` event during
+                # agent execution. By the time the chat_channel sends the IMAGE_URL reply,
+                # the SSE stream has typically closed (after the text "done") and the
+                # request_id is gone from sse_queues, so we'd otherwise duplicate the file
+                # as a polling bubble. Scheduler/push tasks have no on_event and must
+                # still go through polling normally.
+                if (
+                    reply.type in (ReplyType.IMAGE_URL, ReplyType.FILE)
+                    and content.startswith("file://")
+                    and context.get("on_event") is not None
+                ):
+                    logger.debug(f"Polling skipped duplicate file reply for session {session_id}")
+                    return
                 response_data = {
                     "type": str(reply.type),
-                    "content": reply.content,
+                    "content": content,
                     "timestamp": time.time(),
                     "request_id": request_id
                 }
@@ -225,6 +330,17 @@ class WebChannel(ChatChannel):
     def _make_sse_callback(self, request_id: str):
         """Build an on_event callback that pushes agent stream events into the SSE queue."""
 
+        # Cap reasoning bytes pushed to the frontend per request to avoid
+        # browser stalls / crashes on very long chains-of-thought. Anything
+        # beyond the cap is dropped from the stream (DB still persists a
+        # truncated copy via _truncate_reasoning_for_storage).
+        # Keep aligned with frontend REASONING_RENDER_CAP and backend
+        # MAX_STORED_REASONING_CHARS.
+        MAX_REASONING_STREAM_CHARS = 4 * 1024  # 4 KB
+        # Use a single-element list as a mutable counter accessible from closure.
+        reasoning_chars_sent = [0]
+        reasoning_capped_notified = [False]
+
         def on_event(event: dict):
             if request_id not in self.sse_queues:
                 return
@@ -234,8 +350,21 @@ class WebChannel(ChatChannel):
 
             if event_type == "reasoning_update":
                 delta = data.get("delta", "")
-                if delta:
-                    q.put({"type": "reasoning", "content": delta})
+                if not delta:
+                    return
+                remaining = MAX_REASONING_STREAM_CHARS - reasoning_chars_sent[0]
+                if remaining <= 0:
+                    if not reasoning_capped_notified[0]:
+                        reasoning_capped_notified[0] = True
+                        q.put({
+                            "type": "reasoning",
+                            "content": "\n\n... [reasoning truncated for display] ...",
+                        })
+                    return
+                if len(delta) > remaining:
+                    delta = delta[:remaining]
+                reasoning_chars_sent[0] += len(delta)
+                q.put({"type": "reasoning", "content": delta})
 
             elif event_type == "message_update":
                 delta = data.get("delta", "")
@@ -269,6 +398,25 @@ class WebChannel(ChatChannel):
                 if tool_calls:
                     q.put({"type": "message_end", "has_tool_calls": True})
 
+            elif event_type == "agent_end":
+                # Safety net: if the agent finishes with an empty final_response,
+                # chat_channel skips _send_reply (because reply.content is empty),
+                # which means no "done" event is ever emitted and the SSE stream
+                # would hang until the 10-min idle timeout. Push a fallback "done"
+                # here so the frontend always gets closure.
+                final_response = data.get("final_response", "")
+                if not final_response or not str(final_response).strip():
+                    logger.warning(
+                        f"[WebChannel] agent_end with empty final_response for "
+                        f"request {request_id}, sending fallback done"
+                    )
+                    q.put({
+                        "type": "done",
+                        "content": "(模型未返回任何内容，请重试或换一种方式描述你的需求)",
+                        "request_id": request_id,
+                        "timestamp": time.time(),
+                    })
+
             elif event_type == "file_to_send":
                 file_path = data.get("path", "")
                 file_name = data.get("file_name", os.path.basename(file_path))
@@ -285,23 +433,92 @@ class WebChannel(ChatChannel):
         return on_event
 
     def upload_file(self):
-        """Handle file upload via multipart/form-data. Save to workspace/tmp/ and return metadata."""
+        """Handle file or directory upload via multipart/form-data."""
         try:
-            params = web.input(file={}, session_id="")
+            params = _raw_web_input()
             file_obj = params.get("file")
+            file_objs = params.get("files")
             session_id = params.get("session_id", "")
-            if file_obj is None or not hasattr(file_obj, "filename") or not file_obj.filename:
-                return json.dumps({"status": "error", "message": "No file uploaded"})
+            relative_path = params.get("relative_path", "")
+            relative_paths = params.get("relative_paths")
+            upload_id = params.get("upload_id", "")
+
+            directory_files = _ensure_list(file_objs)
+
+            # NOTE: cgi.FieldStorage raises TypeError on truthy checks for single-file
+            # uploads (Python 3.9+). Always use `is not None` instead of `if file_obj`.
+            if not directory_files and file_obj is not None and relative_path:
+                directory_files = [file_obj]
+
+            directory_rel_paths = _ensure_list(relative_paths)
+
+            if not directory_rel_paths and relative_path:
+                directory_rel_paths = [relative_path]
+
+            is_directory_upload = bool(directory_files) or bool(directory_rel_paths) or bool(relative_path) or bool(upload_id)
 
             upload_dir = _get_upload_dir()
+            if is_directory_upload:
+                if not upload_id:
+                    return json.dumps({"status": "error", "message": "Missing upload_id for directory upload"})
+                if not directory_files:
+                    return json.dumps({"status": "error", "message": "No files uploaded"})
+                if len(directory_files) != len(directory_rel_paths):
+                    return json.dumps({"status": "error", "message": "Directory upload payload mismatch"})
+
+                safe_upload_id = _sanitize_upload_id(upload_id)
+                upload_root = os.path.join(upload_dir, f"webdir_{safe_upload_id}")
+                upload_root_real = os.path.realpath(upload_root)
+
+                root_name = None
+                saved_files = 0
+                for file_obj, rel_path in zip(directory_files, directory_rel_paths):
+                    if file_obj is None:
+                        raise ValueError("Invalid uploaded file")
+                    safe_rel_path, save_path = _resolve_upload_path(upload_root_real, rel_path)
+                    current_root_name = safe_rel_path.split("/", 1)[0]
+                    if root_name is None:
+                        root_name = current_root_name
+                    elif root_name != current_root_name:
+                        raise ValueError("Directory upload must use a single root folder")
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                    content_bytes = _read_uploaded_file_bytes(file_obj)
+                    with open(save_path, "wb") as f:
+                        f.write(content_bytes)
+                    saved_files += 1
+
+                if not root_name:
+                    raise ValueError("Directory root path missing")
+
+                root_path = os.path.realpath(os.path.join(upload_root_real, root_name))
+                if not _is_within_directory(upload_root_real, root_path):
+                    raise ValueError("Invalid directory upload path")
+
+                logger.info(f"[WebChannel] Directory uploaded: {root_name} -> {root_path} ({saved_files} files)")
+                return json.dumps({
+                    "status": "success",
+                    "file_path": root_path,
+                    "file_name": root_name,
+                    "file_type": "directory",
+                    "file_count": saved_files,
+                    "root_path": root_path,
+                    "root_name": root_name,
+                    "upload_type": "directory",
+                }, ensure_ascii=False)
+
+            if file_obj is None or not hasattr(file_obj, "filename") or not file_obj.filename:
+                return json.dumps({"status": "error", "message": "No file uploaded"})
 
             original_name = file_obj.filename
             ext = os.path.splitext(original_name)[1].lower()
             safe_name = f"web_{uuid.uuid4().hex[:8]}{ext}"
             save_path = os.path.join(upload_dir, safe_name)
+            public_path = safe_name
+            display_name = original_name
 
+            content_bytes = _read_uploaded_file_bytes(file_obj)
             with open(save_path, "wb") as f:
-                f.write(file_obj.read() if hasattr(file_obj, "read") else file_obj.value)
+                f.write(content_bytes)
 
             if ext in IMAGE_EXTENSIONS:
                 file_type = "image"
@@ -310,14 +527,15 @@ class WebChannel(ChatChannel):
             else:
                 file_type = "file"
 
-            preview_url = f"/uploads/{safe_name}"
+            from urllib.parse import quote
+            preview_url = f"/uploads/{quote(public_path, safe='/')}"
 
             logger.info(f"[WebChannel] File uploaded: {original_name} -> {save_path} ({file_type})")
 
             return json.dumps({
                 "status": "success",
                 "file_path": save_path,
-                "file_name": original_name,
+                "file_name": display_name,
                 "file_type": file_type,
                 "preview_url": preview_url,
             }, ensure_ascii=False)
@@ -352,6 +570,8 @@ class WebChannel(ChatChannel):
                         file_refs.append(f"[图片: {fpath}]")
                     elif ftype == "video":
                         file_refs.append(f"[视频: {fpath}]")
+                    elif ftype == "directory":
+                        file_refs.append(f"[目录: {fpath}]")
                     else:
                         file_refs.append(f"[文件: {fpath}]")
                 if file_refs:
@@ -478,7 +698,10 @@ class WebChannel(ChatChannel):
             return f.read()
 
     def startup(self):
+        configured_host = conf().get("web_host", "")
+        host = configured_host or ("0.0.0.0" if _is_password_enabled() else "127.0.0.1")
         port = conf().get("web_port", 9899)
+        is_public_bind = host in ("0.0.0.0", "::")
 
         # 打印可用渠道类型提示
         logger.info(
@@ -494,7 +717,19 @@ class WebChannel(ChatChannel):
         logger.info("[WebChannel]   9. wechatmp_service - 企业公众号")
         logger.info("[WebChannel] ✅ Web控制台已运行")
         logger.info(f"[WebChannel] 🌐 本地访问: http://localhost:{port}")
-        logger.info(f"[WebChannel] 🌍 服务器访问: http://YOUR_IP:{port} (请将YOUR_IP替换为服务器IP)")
+        if is_public_bind:
+            logger.info(f"[WebChannel] 🌍 服务器访问: http://YOUR_IP:{port} (将YOUR_IP替换为服务器IP)")
+            if not _is_password_enabled():
+                logger.info("[WebChannel] ⚠️  当前监听 0.0.0.0 且未设置 web_password，公网部署建议在 config.json 中配置访问密码")
+        else:
+            logger.info(f"[WebChannel] 🔒 当前仅监听 {host}，仅本机可访问。如需公网访问，请将 web_host 改为 0.0.0.0 并配置 web_password 密码")
+
+        try:
+            import webbrowser
+            webbrowser.open(f"http://localhost:{port}")
+            logger.debug(f"[WebChannel] Opened browser at http://localhost:{port}")
+        except Exception as e:
+            logger.debug(f"[WebChannel] Could not open browser: {e}")
 
         # 确保静态文件目录存在
         static_dir = os.path.join(os.path.dirname(__file__), 'static')
@@ -517,6 +752,7 @@ class WebChannel(ChatChannel):
             '/config', 'ConfigHandler',
             '/api/channels', 'ChannelsHandler',
             '/api/weixin/qrlogin', 'WeixinQrHandler',
+            '/api/feishu/register', 'FeishuRegisterHandler',
             '/api/tools', 'ToolsHandler',
             '/api/skills', 'SkillsHandler',
             '/api/memory', 'MemoryHandler',
@@ -546,7 +782,7 @@ class WebChannel(ChatChannel):
         # Build WSGI app with middleware (same as runsimple but without print)
         func = web.httpserver.StaticMiddleware(app.wsgifunc())
         func = web.httpserver.LogMiddleware(func)
-        server = web.httpserver.WSGIServer(("0.0.0.0", port), func)
+        server = web.httpserver.WSGIServer((host, port), func)
         server.daemon_threads = True
         # Default request_queue_size(5) / timeout(10s) / numthreads(10) are
         # too small: when SSE streams occupy many threads, the backlog fills
@@ -560,6 +796,13 @@ class WebChannel(ChatChannel):
             server.start()
         except (KeyboardInterrupt, SystemExit):
             server.stop()
+        except OSError as e:
+            if e.errno in (48, 98):  # macOS/Linux EADDRINUSE
+                logger.error(
+                    f"[WebChannel] 端口 {port} 已被占用，可执行 `cow restart` 清理残留进程，"
+                    f"或在 config.json 中修改 web_port"
+                )
+            raise
 
     def stop(self):
         if self._http_server:
@@ -712,65 +955,60 @@ class ChatHandler:
 class ConfigHandler:
 
     _RECOMMENDED_MODELS = [
-        const.MINIMAX_M2_7, const.MINIMAX_M2_5, const.MINIMAX_M2_1, const.MINIMAX_M2_1_LIGHTNING,
-        const.GLM_5_TURBO, const.GLM_5, const.GLM_4_7,
-        const.QWEN36_PLUS, const.QWEN35_PLUS, const.QWEN3_MAX,
-        const.KIMI_K2_5, const.KIMI_K2,
-        const.DOUBAO_SEED_2_PRO, const.DOUBAO_SEED_2_CODE,
-        const.CLAUDE_4_6_SONNET, const.CLAUDE_4_6_OPUS, const.CLAUDE_4_5_SONNET,
+        const.DEEPSEEK_V4_FLASH, const.DEEPSEEK_V4_PRO, const.DEEPSEEK_CHAT, const.DEEPSEEK_REASONER,
+        const.MINIMAX_M2_7_HIGHSPEED, const.MINIMAX_M2_7, const.MINIMAX_M2_5, const.MINIMAX_M2_1, const.MINIMAX_M2_1_LIGHTNING,
+        const.CLAUDE_4_6_SONNET, const.CLAUDE_4_7_OPUS, const.CLAUDE_4_6_OPUS, const.CLAUDE_4_5_SONNET,
         const.GEMINI_31_FLASH_LITE_PRE, const.GEMINI_31_PRO_PRE, const.GEMINI_3_FLASH_PRE,
         const.GPT_54, const.GPT_54_MINI, const.GPT_54_NANO, const.GPT_5, const.GPT_41, const.GPT_4o,
-        const.DEEPSEEK_CHAT, const.DEEPSEEK_REASONER,
+        const.GLM_5_1, const.GLM_5_TURBO, const.GLM_5, const.GLM_4_7,
+        const.QWEN36_PLUS, const.QWEN35_PLUS, const.QWEN3_MAX,
+        const.DOUBAO_SEED_2_PRO, const.DOUBAO_SEED_2_CODE,
+        const.KIMI_K2_6, const.KIMI_K2_5, const.KIMI_K2,
+        const.ERNIE_5_1, const.ERNIE_5, const.ERNIE_X1_1, const.ERNIE_45_TURBO_128K, const.ERNIE_45_TURBO_32K,
     ]
 
+    # Generic placeholder hints surfaced in the web console. We deliberately
+    # show the version-path tail (e.g. "/v1") so users are reminded to type
+    # the full base URL. The form is intentionally vague (`...../v1`) so it
+    # never looks like a real default a user might paste verbatim — and we
+    # never auto-rewrite anything on the server side.
+    _PLACEHOLDER_V1 = "https://...../v1"
+    _PLACEHOLDER_QIANFAN = "https://...../v2"
+    _PLACEHOLDER_ZHIPU = "https://...../api/paas/v4"
+    _PLACEHOLDER_DOUBAO = "https://...../api/v3"
+    _PLACEHOLDER_GEMINI = "https://....."
+
     PROVIDER_MODELS = OrderedDict([
+        ("deepseek", {
+            "label": "DeepSeek",
+            "api_key_field": "deepseek_api_key",
+            "api_base_key": "deepseek_api_base",
+            "api_base_default": "https://api.deepseek.com/v1",
+            "api_base_placeholder": _PLACEHOLDER_V1,
+            "models": [const.DEEPSEEK_V4_FLASH, const.DEEPSEEK_V4_PRO, const.DEEPSEEK_CHAT, const.DEEPSEEK_REASONER],
+        }),
         ("minimax", {
             "label": "MiniMax",
             "api_key_field": "minimax_api_key",
             "api_base_key": None,
             "api_base_default": None,
+            "api_base_placeholder": "",
             "models": [const.MINIMAX_M2_7, const.MINIMAX_M2_7_HIGHSPEED, const.MINIMAX_M2_5, const.MINIMAX_M2_1, const.MINIMAX_M2_1_LIGHTNING],
-        }),
-        ("zhipu", {
-            "label": "智谱AI",
-            "api_key_field": "zhipu_ai_api_key",
-            "api_base_key": "zhipu_ai_api_base",
-            "api_base_default": "https://open.bigmodel.cn/api/paas/v4",
-            "models": [const.GLM_5_TURBO, const.GLM_5, const.GLM_4_7],
-        }),
-        ("dashscope", {
-            "label": "通义千问",
-            "api_key_field": "dashscope_api_key",
-            "api_base_key": None,
-            "api_base_default": None,
-            "models": [const.QWEN36_PLUS, const.QWEN35_PLUS, const.QWEN3_MAX],
-        }),
-        ("moonshot", {
-            "label": "Kimi",
-            "api_key_field": "moonshot_api_key",
-            "api_base_key": "moonshot_base_url",
-            "api_base_default": "https://api.moonshot.cn/v1",
-            "models": [const.KIMI_K2_5, const.KIMI_K2],
-        }),
-        ("doubao", {
-            "label": "豆包",
-            "api_key_field": "ark_api_key",
-            "api_base_key": "ark_base_url",
-            "api_base_default": "https://ark.cn-beijing.volces.com/api/v3",
-            "models": [const.DOUBAO_SEED_2_PRO, const.DOUBAO_SEED_2_CODE],
         }),
         ("claudeAPI", {
             "label": "Claude",
             "api_key_field": "claude_api_key",
             "api_base_key": "claude_api_base",
             "api_base_default": "https://api.anthropic.com/v1",
-            "models": [const.CLAUDE_4_6_SONNET, const.CLAUDE_4_6_OPUS, const.CLAUDE_4_5_SONNET],
+            "api_base_placeholder": _PLACEHOLDER_V1,
+            "models": [const.CLAUDE_4_6_SONNET, const.CLAUDE_4_7_OPUS, const.CLAUDE_4_6_OPUS, const.CLAUDE_4_5_SONNET],
         }),
         ("gemini", {
             "label": "Gemini",
             "api_key_field": "gemini_api_key",
             "api_base_key": "gemini_api_base",
             "api_base_default": "https://generativelanguage.googleapis.com",
+            "api_base_placeholder": _PLACEHOLDER_GEMINI,
             "models": [const.GEMINI_31_FLASH_LITE_PRE, const.GEMINI_31_PRO_PRE, const.GEMINI_3_FLASH_PRE],
         }),
         ("openai", {
@@ -778,20 +1016,55 @@ class ConfigHandler:
             "api_key_field": "open_ai_api_key",
             "api_base_key": "open_ai_api_base",
             "api_base_default": "https://api.openai.com/v1",
+            "api_base_placeholder": _PLACEHOLDER_V1,
             "models": [const.GPT_54, const.GPT_54_MINI, const.GPT_54_NANO, const.GPT_5, const.GPT_41, const.GPT_4o],
         }),
-        ("deepseek", {
-            "label": "DeepSeek",
-            "api_key_field": "deepseek_api_key",
-            "api_base_key": "deepseek_api_base",
-            "api_base_default": "https://api.deepseek.com/v1",
-            "models": [const.DEEPSEEK_CHAT, const.DEEPSEEK_REASONER],
+        ("zhipu", {
+            "label": "智谱AI",
+            "api_key_field": "zhipu_ai_api_key",
+            "api_base_key": "zhipu_ai_api_base",
+            "api_base_default": "https://open.bigmodel.cn/api/paas/v4",
+            "api_base_placeholder": _PLACEHOLDER_ZHIPU,
+            "models": [const.GLM_5_1, const.GLM_5_TURBO, const.GLM_5, const.GLM_4_7],
+        }),
+        ("dashscope", {
+            "label": "通义千问",
+            "api_key_field": "dashscope_api_key",
+            "api_base_key": None,
+            "api_base_default": None,
+            "api_base_placeholder": "",
+            "models": [const.QWEN36_PLUS, const.QWEN35_PLUS, const.QWEN3_MAX],
+        }),
+        ("doubao", {
+            "label": "豆包",
+            "api_key_field": "ark_api_key",
+            "api_base_key": "ark_base_url",
+            "api_base_default": "https://ark.cn-beijing.volces.com/api/v3",
+            "api_base_placeholder": _PLACEHOLDER_DOUBAO,
+            "models": [const.DOUBAO_SEED_2_PRO, const.DOUBAO_SEED_2_CODE],
+        }),
+        ("moonshot", {
+            "label": "Kimi",
+            "api_key_field": "moonshot_api_key",
+            "api_base_key": "moonshot_base_url",
+            "api_base_default": "https://api.moonshot.cn/v1",
+            "api_base_placeholder": _PLACEHOLDER_V1,
+            "models": [const.KIMI_K2_6, const.KIMI_K2_5, const.KIMI_K2],
+        }),
+        ("qianfan", {
+            "label": "百度千帆",
+            "api_key_field": "qianfan_api_key",
+            "api_base_key": "qianfan_api_base",
+            "api_base_default": "https://qianfan.baidubce.com/v2",
+            "api_base_placeholder": _PLACEHOLDER_QIANFAN,
+            "models": [const.ERNIE_5_1, const.ERNIE_5, const.ERNIE_X1_1, const.ERNIE_45_TURBO_128K, const.ERNIE_45_TURBO_32K],
         }),
         ("modelscope", {
             "label": "ModelScope",
             "api_key_field": "modelscope_api_key",
             "api_base_key": None,
             "api_base_default": None,
+            "api_base_placeholder": "",
             "models": [const.QWEN3_5_27B, const.QWEN3_235B_A22B_INSTRUCT_2507],
         }),
         ("linkai", {
@@ -799,6 +1072,7 @@ class ConfigHandler:
             "api_key_field": "linkai_api_key",
             "api_base_key": None,
             "api_base_default": None,
+            "api_base_placeholder": "",
             "models": _RECOMMENDED_MODELS,
         }),
         ("custom", {
@@ -806,15 +1080,16 @@ class ConfigHandler:
             "api_key_field": "custom_api_key",
             "api_base_key": "custom_api_base",
             "api_base_default": "",
+            "api_base_placeholder": _PLACEHOLDER_V1,
             "models": [],
         }),
     ])
 
     EDITABLE_KEYS = {
         "model", "bot_type", "use_linkai",
-        "open_ai_api_base", "deepseek_api_base", "claude_api_base", "gemini_api_base",
+        "open_ai_api_base", "deepseek_api_base", "qianfan_api_base", "claude_api_base", "gemini_api_base",
         "zhipu_ai_api_base", "moonshot_base_url", "ark_base_url", "custom_api_base",
-        "open_ai_api_key", "deepseek_api_key", "claude_api_key", "gemini_api_key",
+        "open_ai_api_key", "deepseek_api_key", "qianfan_api_key", "claude_api_key", "gemini_api_key",
         "zhipu_ai_api_key", "dashscope_api_key", "moonshot_api_key",
         "ark_api_key", "minimax_api_key", "linkai_api_key", "custom_api_key",
         "agent_max_context_tokens", "agent_max_context_turns", "agent_max_steps",
@@ -854,6 +1129,7 @@ class ConfigHandler:
                     "models": p["models"],
                     "api_base_key": p["api_base_key"],
                     "api_base_default": p["api_base_default"],
+                    "api_base_placeholder": p.get("api_base_placeholder", ""),
                     "api_key_field": p.get("api_key_field"),
                 }
 
@@ -871,7 +1147,7 @@ class ConfigHandler:
                 "agent_max_context_tokens": local_config.get("agent_max_context_tokens", 50000),
                 "agent_max_context_turns": local_config.get("agent_max_context_turns", 20),
                 "agent_max_steps": local_config.get("agent_max_steps", 20),
-                "enable_thinking": bool(local_config.get("enable_thinking", True)),
+                "enable_thinking": bool(local_config.get("enable_thinking", False)),
                 "api_bases": api_bases,
                 "api_keys": api_keys_masked,
                 "providers": providers,
@@ -917,6 +1193,19 @@ class ConfigHandler:
                 json.dump(file_cfg, f, indent=4, ensure_ascii=False)
 
             logger.info(f"[WebChannel] Config updated: {list(applied.keys())}")
+
+            # Reset Bridge so that bot routing reflects the new config.
+            # Without this, Bridge keeps its cached bot instance (e.g. LinkAIBot)
+            # even after the user switches bot_type / use_linkai / model in UI.
+            bridge_routing_keys = {"bot_type", "use_linkai", "model"}
+            if any(k in applied for k in bridge_routing_keys):
+                try:
+                    from bridge.bridge import Bridge
+                    Bridge().reset_bot()
+                    logger.info("[WebChannel] Bridge bot routing reset due to config change")
+                except Exception as reset_err:
+                    logger.warning(f"[WebChannel] Failed to reset bridge: {reset_err}")
+
             return json.dumps({"status": "success", "applied": applied}, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error updating config: {e}")
@@ -940,8 +1229,6 @@ class ChannelsHandler:
             "fields": [
                 {"key": "feishu_app_id", "label": "App ID", "type": "text"},
                 {"key": "feishu_app_secret", "label": "App Secret", "type": "secret"},
-                {"key": "feishu_token", "label": "Verification Token", "type": "secret"},
-                {"key": "feishu_bot_name", "label": "Bot Name", "type": "text"},
             ],
         }),
         ("dingtalk", {
@@ -1434,6 +1721,174 @@ class WeixinQrHandler:
             })
 
         return json.dumps({"status": "success", "qr_status": qr_status})
+
+
+class FeishuRegisterHandler:
+    """飞书智能体应用一键创建（OAuth 设备授权流，基于 lark.register_app SDK）。
+
+    GET  /api/feishu/register   → 启动注册：调用 SDK 生成二维码 URL，立即返回；
+                                   后台线程继续轮询飞书侧直到用户扫码授权。
+    POST /api/feishu/register   → 轮询当前会话状态（pending / done / error / expired）。
+                                   注册成功后不直接写 config，由前端再调
+                                   /api/channels {action:'connect'} 走标准启用流程。
+    """
+
+    # 进程内单例状态（{url, expire_in, status, app_id, app_secret, error, thread}）。
+    # 简单的本地自部署场景下不需要 session 隔离。
+    _state = {}
+    _lock = threading.Lock()
+
+    @staticmethod
+    def _qr_to_data_uri(data: str) -> str:
+        """复用 WeixinQrHandler 的二维码渲染。"""
+        return WeixinQrHandler._qr_to_data_uri(data)
+
+    @classmethod
+    def _reset_state(cls):
+        with cls._lock:
+            cls._state = {}
+
+    @classmethod
+    def _start_register_thread(cls):
+        """启动一次新的注册会话。如已有进行中的会话，先取消（通过 cancel_event）。"""
+        # 先取消可能存在的上一次会话，避免两个 SDK 线程并发 poll 同一个端点
+        with cls._lock:
+            old_cancel = cls._state.get("cancel_event") if cls._state else None
+            if old_cancel is not None:
+                old_cancel.set()
+            cancel_event = threading.Event()
+            cls._state = {"status": "starting", "cancel_event": cancel_event}
+
+        def _worker():
+            try:
+                import lark_oapi as lark
+            except ImportError:
+                with cls._lock:
+                    cls._state["status"] = "error"
+                    cls._state["error"] = "lark-oapi SDK 未安装，请执行 pip install -U lark-oapi"
+                return
+
+            def _on_qr(info):
+                # SDK 拿到二维码 URL 后立即回调；写入 state 让前端 GET 立刻能拿到
+                with cls._lock:
+                    cls._state["url"] = info.get("url", "")
+                    cls._state["expire_in"] = info.get("expire_in", 600)
+                    cls._state["qr_image"] = cls._qr_to_data_uri(info.get("url", ""))
+                    cls._state["status"] = "pending"
+                logger.info(f"[FeishuRegister] QR ready, expire_in={info.get('expire_in')}s")
+
+            def _on_status(info):
+                # 过滤掉 polling 心跳（每 5 秒一次，纯噪音）；
+                # 保留 slow_down / domain_switched 等真正的状态切换事件
+                status = info.get("status")
+                if status == "polling":
+                    return
+                logger.info(f"[FeishuRegister] SDK status: {info}")
+
+            try:
+                result = lark.register_app(
+                    on_qr_code=_on_qr,
+                    on_status_change=_on_status,
+                    source="cowagent",
+                    cancel_event=cancel_event,
+                )
+                with cls._lock:
+                    cls._state["status"] = "done"
+                    cls._state["app_id"] = result.get("client_id", "")
+                    cls._state["app_secret"] = result.get("client_secret", "")
+                logger.info(f"[FeishuRegister] App created: app_id={result.get('client_id')}")
+            except Exception as e:
+                err_msg = str(e)
+                err_cls = e.__class__.__name__
+                # 飞书 SDK 抛出的 AppExpiredError / AppAccessDeniedError / RegisterAppError
+                if "Expired" in err_cls:
+                    status = "expired"
+                elif "Denied" in err_cls:
+                    status = "denied"
+                elif "abort" in err_msg.lower() or "cancel" in err_msg.lower():
+                    # 被新一轮注册抢占，保持安静
+                    return
+                else:
+                    status = "error"
+                with cls._lock:
+                    # 仅当当前 state 仍属于本次 worker 时才写入，避免覆盖更新的会话
+                    if cls._state.get("cancel_event") is cancel_event:
+                        cls._state["status"] = status
+                        cls._state["error"] = err_msg
+                logger.warning(f"[FeishuRegister] Register failed ({err_cls}): {err_msg}")
+
+        threading.Thread(target=_worker, daemon=True, name="feishu-register").start()
+
+    def GET(self):
+        """启动一次新的注册会话。如果已有 pending/done 会话则覆盖。"""
+        _require_auth()
+        web.header('Content-Type', 'application/json; charset=utf-8')
+        try:
+            self._start_register_thread()
+            # 等待 SDK 拿到二维码 URL（最多 10s）。SDK 内部会马上回调 _on_qr。
+            import time as _t
+            for _ in range(100):
+                with self._lock:
+                    if self._state.get("url") or self._state.get("status") in ("error", "expired", "denied"):
+                        break
+                _t.sleep(0.1)
+            with self._lock:
+                if self._state.get("status") in ("error", "expired", "denied"):
+                    return json.dumps({
+                        "status": "error",
+                        "message": self._state.get("error", "register failed"),
+                    })
+                if not self._state.get("url"):
+                    return json.dumps({
+                        "status": "error",
+                        "message": "等待飞书二维码超时，请重试",
+                    })
+                return json.dumps({
+                    "status": "success",
+                    "qrcode_url": self._state["url"],
+                    "qr_image": self._state.get("qr_image", ""),
+                    "expire_in": self._state.get("expire_in", 600),
+                })
+        except Exception as e:
+            logger.error(f"[WebChannel] FeishuRegister GET error: {e}")
+            return json.dumps({"status": "error", "message": str(e)})
+
+    def POST(self):
+        """轮询注册结果。"""
+        _require_auth()
+        web.header('Content-Type', 'application/json; charset=utf-8')
+        try:
+            body = json.loads(web.data() or b"{}")
+            action = body.get("action", "poll")
+            if action != "poll":
+                return json.dumps({"status": "error", "message": f"unknown action: {action}"})
+
+            with self._lock:
+                status = self._state.get("status", "idle")
+                if status == "done":
+                    payload = {
+                        "status": "success",
+                        "register_status": "done",
+                        "app_id": self._state.get("app_id", ""),
+                        "app_secret": self._state.get("app_secret", ""),
+                    }
+                    # 一次性返回凭据后清掉，避免敏感信息长期驻留内存
+                    self._state = {}
+                    return json.dumps(payload)
+                if status in ("error", "expired", "denied"):
+                    return json.dumps({
+                        "status": "success",
+                        "register_status": status,
+                        "message": self._state.get("error", ""),
+                    })
+                # pending / starting：还在等用户扫码
+                return json.dumps({
+                    "status": "success",
+                    "register_status": "pending",
+                })
+        except Exception as e:
+            logger.error(f"[WebChannel] FeishuRegister POST error: {e}")
+            return json.dumps({"status": "error", "message": str(e)})
 
 
 def _get_workspace_root():

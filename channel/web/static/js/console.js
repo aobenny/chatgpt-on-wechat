@@ -38,7 +38,7 @@ const I18N = {
         config_max_tokens: '最大上下文 Token', config_max_tokens_hint: '对话中 Agent 能输入的最大 Token 长度，超过后会智能压缩处理',
         config_max_turns: '最大记忆轮次', config_max_turns_hint: '一问一答为一轮，超过后会智能压缩处理',
         config_max_steps: '最大执行步数', config_max_steps_hint: '单次对话中 Agent 最多调用工具的次数',
-        config_enable_thinking: '深度思考', config_enable_thinking_hint: '启用后在 Web 端展示模型推理过程',
+        config_enable_thinking: '深度思考', config_enable_thinking_hint: '是否启用深度思考模式',
         config_channel_type: '通道类型',
         config_provider: '模型厂商', config_model_name: '模型',
         config_custom_model_hint: '输入自定义模型名称',
@@ -50,7 +50,7 @@ const I18N = {
         config_password_hint: '留空则不启用密码保护',
         config_password_changed: '密码已更新，请重新登录',
         config_password_cleared: '密码已清除',
-        skills_title: '技能管理', skills_desc: '查看、启用或禁用 Agent 技能', skills_hub_btn: '探索技能广场',
+        skills_title: '技能管理', skills_desc: '查看、启用或禁用 Agent 工具和技能', skills_hub_btn: '探索技能广场',
         skills_loading: '加载技能中...', skills_loading_desc: '技能加载后将显示在此处',
         tools_section_title: '内置工具', tools_loading: '加载工具中...',
         skills_section_title: '技能', skill_enable: '启用', skill_disable: '禁用',
@@ -78,6 +78,19 @@ const I18N = {
         wecom_scan_success: '创建成功，正在启动通道...',
         wecom_scan_fail: '创建失败',
         wecom_mode_scan: '扫码接入', wecom_mode_manual: '手动填写',
+        feishu_scan_btn: '一键创建飞书应用',
+        feishu_scan_desc: '使用飞书 App 扫码，自动创建应用并预置全部权限与事件订阅',
+        feishu_scan_replace_desc: '使用飞书 App 扫码创建新机器人，将覆盖当前的 App ID / Secret',
+        feishu_scan_loading: '正在向飞书申请二维码...',
+        feishu_scan_waiting: '等待扫码...',
+        feishu_scan_tip: '二维码 10 分钟内有效，仅供一次扫描',
+        feishu_scan_open_link: '或点击此处在浏览器中打开',
+        feishu_scan_success: '应用创建成功，正在启动通道...',
+        feishu_scan_expired: '二维码已过期，请重试',
+        feishu_scan_denied: '已取消授权',
+        feishu_scan_fail: '创建失败',
+        feishu_scan_retry: '重试',
+        feishu_mode_scan: '扫码创建', feishu_mode_manual: '手动填写',
         tasks_title: '定时任务', tasks_desc: '查看和管理定时任务',
         tasks_coming: '即将推出', tasks_coming_desc: '定时任务管理功能即将在此提供',
         logs_title: '日志', logs_desc: '实时日志输出 (run.log)',
@@ -91,7 +104,9 @@ const I18N = {
         context_cleared: '— 以上内容已从上下文中移除 —',
         tip_new_chat: '新建对话',
         tip_clear_context: '清除上下文',
-        tip_attach_file: '上传附件',
+        tip_attach: '添加附件',
+        attach_menu_file: '上传文件',
+        attach_menu_folder: '上传文件夹',
         confirm_yes: '确认',
         confirm_cancel: '取消',
         error_send: '发送失败，请稍后再试。', error_timeout: '请求超时，请再试一次。',
@@ -124,7 +139,7 @@ const I18N = {
         config_max_tokens: 'Max Context Tokens', config_max_tokens_hint: 'Max tokens the Agent can input per conversation, auto-compressed when exceeded',
         config_max_turns: 'Max Memory Turns', config_max_turns_hint: 'One Q&A pair = one turn, auto-compressed when exceeded',
         config_max_steps: 'Max Steps', config_max_steps_hint: 'Max tool calls the Agent can make in a single conversation',
-        config_enable_thinking: 'Deep Thinking', config_enable_thinking_hint: 'Show model reasoning on web console',
+        config_enable_thinking: 'Deep Thinking', config_enable_thinking_hint: 'Enable deep thinking mode',
         config_channel_type: 'Channel Type',
         config_provider: 'Provider', config_model_name: 'Model',
         config_custom_model_hint: 'Enter custom model name',
@@ -136,7 +151,7 @@ const I18N = {
         config_password_hint: 'Leave empty to disable password protection',
         config_password_changed: 'Password updated, please re-login',
         config_password_cleared: 'Password cleared',
-        skills_title: 'Skills', skills_desc: 'View, enable, or disable agent skills', skills_hub_btn: 'Skill Hub',
+        skills_title: 'Skills', skills_desc: 'View, enable, or disable agent tools and skills', skills_hub_btn: 'Skill Hub',
         skills_loading: 'Loading skills...', skills_loading_desc: 'Skills will be displayed here after loading',
         tools_section_title: 'Built-in Tools', tools_loading: 'Loading tools...',
         skills_section_title: 'Skills', skill_enable: 'Enable', skill_disable: 'Disable',
@@ -164,6 +179,19 @@ const I18N = {
         wecom_scan_success: 'Bot created, starting channel...',
         wecom_scan_fail: 'Bot creation failed',
         wecom_mode_scan: 'Scan QR', wecom_mode_manual: 'Manual',
+        feishu_scan_btn: 'One-click Create Feishu App',
+        feishu_scan_desc: 'Scan with Feishu App to create an app with all required permissions pre-configured',
+        feishu_scan_replace_desc: 'Scan with Feishu App to create a new bot — will overwrite the current App ID / Secret',
+        feishu_scan_loading: 'Requesting QR code from Feishu...',
+        feishu_scan_waiting: 'Waiting for scan...',
+        feishu_scan_tip: 'QR code expires in 10 minutes, single use only',
+        feishu_scan_open_link: 'Or click here to open in browser',
+        feishu_scan_success: 'App created, starting channel...',
+        feishu_scan_expired: 'QR code expired, please retry',
+        feishu_scan_denied: 'Authorization cancelled',
+        feishu_scan_fail: 'App creation failed',
+        feishu_scan_retry: 'Retry',
+        feishu_mode_scan: 'Scan QR', feishu_mode_manual: 'Manual',
         tasks_title: 'Scheduled Tasks', tasks_desc: 'View and manage scheduled tasks',
         tasks_coming: 'Coming Soon', tasks_coming_desc: 'Scheduled task management will be available here',
         logs_title: 'Logs', logs_desc: 'Real-time log output (run.log)',
@@ -177,7 +205,9 @@ const I18N = {
         context_cleared: '— Context above has been cleared —',
         tip_new_chat: 'New Chat',
         tip_clear_context: 'Clear Context',
-        tip_attach_file: 'Attach File',
+        tip_attach: 'Add Attachment',
+        attach_menu_file: 'Upload File',
+        attach_menu_folder: 'Upload Folder',
         confirm_yes: 'Confirm',
         confirm_cancel: 'Cancel',
         error_send: 'Failed to send. Please try again.', error_timeout: 'Request timeout. Please try again.',
@@ -204,6 +234,7 @@ function applyI18n() {
     document.querySelectorAll('[data-tip-key]').forEach(el => {
         el.setAttribute('data-tooltip', t(el.dataset.tipKey));
     });
+    installCfgTipPortal();
     const langLabel = document.getElementById('lang-label');
     if (langLabel) langLabel.textContent = currentLang === 'zh' ? '中文' : 'EN';
 }
@@ -213,6 +244,54 @@ function toggleLanguage() {
     localStorage.setItem('cow_lang', currentLang);
     applyI18n();
     _applyInputTooltips();
+}
+
+// Floating tooltip portal for [data-tip-key] elements. Tooltip nodes are
+// appended to <body> so they aren't clipped by overflow:hidden ancestors
+// (e.g. the config panel's scroll container).
+let _cfgTipPortalEl = null;
+let _cfgTipPortalInstalled = false;
+function installCfgTipPortal() {
+    if (_cfgTipPortalInstalled) return;
+    _cfgTipPortalInstalled = true;
+
+    const showTip = (target) => {
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+        if (!_cfgTipPortalEl) {
+            _cfgTipPortalEl = document.createElement('div');
+            _cfgTipPortalEl.className = 'cfg-tip-floating';
+            document.body.appendChild(_cfgTipPortalEl);
+        }
+        _cfgTipPortalEl.textContent = text;
+        const rect = target.getBoundingClientRect();
+        // Render once to measure, then position above the target, centered.
+        _cfgTipPortalEl.style.left = '0px';
+        _cfgTipPortalEl.style.top = '0px';
+        _cfgTipPortalEl.classList.add('show');
+        const tipRect = _cfgTipPortalEl.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - tipRect.width / 2;
+        // Clamp horizontally to the viewport with an 8px gutter.
+        left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
+        const top = rect.top - tipRect.height - 6;
+        _cfgTipPortalEl.style.left = left + 'px';
+        _cfgTipPortalEl.style.top = top + 'px';
+    };
+    const hideTip = () => {
+        if (_cfgTipPortalEl) _cfgTipPortalEl.classList.remove('show');
+    };
+
+    document.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('[data-tip-key]');
+        if (target) showTip(target);
+    });
+    document.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('[data-tip-key]');
+        if (target) hideTip();
+    });
+    // Hide on scroll/resize so the tooltip doesn't drift away from its anchor.
+    window.addEventListener('scroll', hideTip, true);
+    window.addEventListener('resize', hideTip);
 }
 
 // =====================================================================
@@ -315,14 +394,34 @@ window.addEventListener('resize', () => {
 // =====================================================================
 // Markdown Renderer
 // =====================================================================
+const FALLBACK_HLJS = {
+    getLanguage() { return false; },
+    highlight(str) { return { value: escapeHtml(str) }; },
+    highlightAuto(str) { return { value: escapeHtml(str) }; },
+    highlightElement() {},
+};
+
+function getHljs() {
+    return window.hljs || FALLBACK_HLJS;
+}
+
 function createMd() {
-    const md = window.markdownit({
+    const hljsLib = getHljs();
+    const mdFactory = window.markdownit;
+    if (typeof mdFactory !== 'function') {
+        return {
+            render(text) {
+                return `<p>${escapeHtml(text || '')}</p>`;
+            }
+        };
+    }
+    const md = mdFactory({
         html: false, breaks: true, linkify: true, typographer: true,
         highlight: function(str, lang) {
-            if (lang && hljs.getLanguage(lang)) {
-                try { return hljs.highlight(str, { language: lang }).value; } catch (_) {}
+            if (lang && hljsLib.getLanguage(lang)) {
+                try { return hljsLib.highlight(str, { language: lang }).value; } catch (_) {}
             }
-            return hljs.highlightAuto(str).value;
+            return hljsLib.highlightAuto(str).value;
         }
     });
     const defaultLinkOpen = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
@@ -339,16 +438,57 @@ function createMd() {
 const md = createMd();
 
 const VIDEO_EXT_RE = /\.(?:mp4|webm|mov|avi|mkv)$/i;  // tested against URL without query string
+const IMAGE_EXT_RE = /\.(?:jpg|jpeg|png|gif|webp|bmp|svg)$/i;  // tested against URL without query string
+
+function _toWebUrl(url) {
+    if (/^\/[A-Za-z]/.test(url) && !url.startsWith('/api/')) {
+        return '/api/file?path=' + encodeURIComponent(url);
+    }
+    if (/^file:\/\/\//i.test(url)) {
+        return '/api/file?path=' + encodeURIComponent(url.replace(/^file:\/\/\//i, '/'));
+    }
+    return url;
+}
 
 function _buildVideoHtml(url) {
+    const webUrl = _toWebUrl(url);
     const fileName = url.split('/').pop().split('?')[0];
     return `<div style="margin:10px 0;">` +
         `<video controls preload="metadata" ` +
         `style="max-width:100%;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:block;">` +
-        `<source src="${url}"></video>` +
-        `<a href="${url}" target="_blank" ` +
+        `<source src="${webUrl}"></video>` +
+        `<a href="${webUrl}" target="_blank" ` +
         `style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;color:#8b8fa8;text-decoration:none;">` +
         `<i class="fas fa-download"></i> ${escapeHtml(fileName)}</a></div>`;
+}
+
+function _openImageLightbox(src) {
+    let overlay = document.getElementById('cow-lightbox');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'cow-lightbox';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;transition:opacity .2s';
+        overlay.onclick = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.style.display = 'none', 200); };
+        const img = document.createElement('img');
+        img.id = 'cow-lightbox-img';
+        img.style.cssText = 'max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.5);object-fit:contain;';
+        img.onclick = (e) => e.stopPropagation();
+        overlay.appendChild(img);
+        document.body.appendChild(overlay);
+    }
+    overlay.querySelector('#cow-lightbox-img').src = src;
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.style.opacity = '1');
+}
+
+function _buildImageHtml(url) {
+    const webUrl = _toWebUrl(url);
+    const safeUrl = webUrl.replace(/"/g, '&quot;');
+    return `<div style="margin:10px 0;">` +
+        `<img src="${safeUrl}" alt="image" loading="lazy" ` +
+        `onclick="_openImageLightbox(this.src)" ` +
+        `style="max-width:520px;width:100%;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:block;cursor:zoom-in;">` +
+        `</div>`;
 }
 
 function injectVideoPlayers(html) {
@@ -369,10 +509,43 @@ function injectVideoPlayers(html) {
     }).join('');
 }
 
+// Convert image URLs into inline <img> previews. Mirrors injectVideoPlayers but for images.
+// Handles three cases produced by markdown-it:
+//   1. <a href="...image.jpg">...</a>  (bare URL or autolink that linkify turned into an anchor)
+//   2. <img src="...">                  (markdown image syntax) — leave as-is, but normalize style
+//   3. raw URL still present in a text node                    — only as a safety net
+function injectImagePreviews(html) {
+    // Step 1: anchor whose href points to an image file -> replace with <img> preview.
+    const step1 = html.replace(
+        /<a\s+href="(https?:\/\/[^"]+)"[^>]*>[^<]*<\/a>/gi,
+        (match, url) => IMAGE_EXT_RE.test(url.split('?')[0]) ? _buildImageHtml(url) : match
+    );
+    // Step 2: bare image URLs left in text nodes (rare — markdown-it's linkify usually catches them).
+    return step1.split(/(<[^>]+>)/).map((chunk, idx) => {
+        if (idx % 2 !== 0) return chunk;
+        return chunk.replace(/https?:\/\/\S+/gi, (url) => {
+            const bare = url.replace(/[),.\s]+$/, '');
+            return IMAGE_EXT_RE.test(bare.split('?')[0]) ? _buildImageHtml(bare) : url;
+        });
+    }).join('');
+}
+
+function _rewriteLocalImgSrc(html) {
+    return html.replace(/<img\s([^>]*?)src="([^"]+)"([^>]*?)>/gi, (match, pre, src, post) => {
+        const webSrc = _toWebUrl(src);
+        const safeSrc = webSrc.replace(/"/g, '&quot;');
+        const hasClick = /onclick/i.test(pre + post);
+        const clickAttr = hasClick ? '' : ` onclick="_openImageLightbox(this.src)" style="cursor:zoom-in;"`;
+        return `<img ${pre}src="${safeSrc}"${post}${clickAttr}>`;
+    });
+}
+
 function renderMarkdown(text) {
     try {
-        const html = md.render(text);
-        return injectVideoPlayers(html);
+        let html = md.render(text);
+        html = _rewriteLocalImgSrc(html);
+        // Order matters: video first (more specific), then image.
+        return injectImagePreviews(injectVideoPlayers(html));
     }
     catch (e) { return text.replace(/\n/g, '<br>'); }
 }
@@ -429,6 +602,25 @@ const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 const messagesDiv = document.getElementById('chat-messages');
 const fileInput = document.getElementById('file-input');
+const folderInput = document.getElementById('folder-input');
+const attachBtn = document.getElementById('attach-btn');
+const attachMenu = document.getElementById('attach-menu');
+const attachFolderOption = document.getElementById('attach-folder-option');
+const supportsDirectoryUpload = !!folderInput && 'webkitdirectory' in folderInput;
+
+if (!supportsDirectoryUpload && attachFolderOption) {
+    attachFolderOption.classList.add('hidden');
+}
+
+// Smart auto-scroll: pause when user scrolls up, resume when near bottom
+let _autoScrollEnabled = true;
+const _SCROLL_THRESHOLD = 80; // px from bottom to re-enable auto-scroll
+
+messagesDiv.addEventListener('scroll', () => {
+    const distFromBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight;
+    _autoScrollEnabled = distFromBottom <= _SCROLL_THRESHOLD;
+    _updateScrollToBottomBtn();
+});
 
 // Intercept internal navigation links in chat messages
 messagesDiv.addEventListener('click', (e) => {
@@ -485,9 +677,12 @@ function renderAttachmentPreview() {
     attachmentPreview.classList.remove('hidden');
     attachmentPreview.innerHTML = pendingAttachments.map((att, idx) => {
         if (att._uploading) {
+            const suffix = att.file_type === 'directory' && att.file_count
+                ? ` (${att.file_count})`
+                : '';
             return `<div class="att-chip att-uploading" data-idx="${idx}">
                 <i class="fas fa-spinner fa-spin"></i>
-                <span class="att-name">${escapeHtml(att.file_name)}</span>
+                <span class="att-name">${escapeHtml(att.file_name)}${suffix}</span>
             </div>`;
         }
         if (att.file_type === 'image') {
@@ -496,10 +691,15 @@ function renderAttachmentPreview() {
                 <button class="att-remove" onclick="removeAttachment(${idx})">&times;</button>
             </div>`;
         }
-        const icon = att.file_type === 'video' ? 'fa-film' : 'fa-file-alt';
+        const icon = att.file_type === 'video'
+            ? 'fa-film'
+            : (att.file_type === 'directory' ? 'fa-folder-tree' : 'fa-file-alt');
+        const suffix = att.file_type === 'directory' && att.file_count
+            ? ` (${att.file_count})`
+            : '';
         return `<div class="att-chip" data-idx="${idx}">
             <i class="fas ${icon}"></i>
-            <span class="att-name">${escapeHtml(att.file_name)}</span>
+            <span class="att-name">${escapeHtml(att.file_name)}${suffix}</span>
             <button class="att-remove" onclick="removeAttachment(${idx})">&times;</button>
         </div>`;
     }).join('');
@@ -510,6 +710,34 @@ function removeAttachment(idx) {
     if (pendingAttachments[idx]?._uploading) return;
     pendingAttachments.splice(idx, 1);
     renderAttachmentPreview();
+}
+
+function isAttachMenuVisible() {
+    return attachMenu && !attachMenu.classList.contains('hidden');
+}
+
+function hideAttachMenu() {
+    if (attachMenu) attachMenu.classList.add('hidden');
+}
+
+function toggleAttachMenu(event) {
+    if (!attachMenu) return;
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    attachMenu.classList.toggle('hidden');
+}
+
+function triggerFileUpload() {
+    hideAttachMenu();
+    fileInput?.click();
+}
+
+function triggerFolderUpload() {
+    if (!supportsDirectoryUpload) return;
+    hideAttachMenu();
+    folderInput?.click();
 }
 
 async function handleFileSelect(files) {
@@ -550,9 +778,88 @@ async function handleFileSelect(files) {
     await Promise.all(tasks);
 }
 
+function _makeUploadId() {
+    return `dir_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function _groupDirectoryFiles(files) {
+    const groups = new Map();
+    for (const file of Array.from(files || [])) {
+        const relPath = file.webkitRelativePath || file.name;
+        const parts = relPath.split('/').filter(Boolean);
+        const rootName = parts[0] || file.name;
+        if (!groups.has(rootName)) groups.set(rootName, []);
+        groups.get(rootName).push({ file, relPath });
+    }
+    return groups;
+}
+
+async function handleFolderSelect(files) {
+    if (!files || files.length === 0) return;
+    const groups = _groupDirectoryFiles(files);
+    const groupTasks = [];
+
+    for (const [rootName, entries] of groups.entries()) {
+        const placeholder = {
+            file_name: rootName,
+            file_type: 'directory',
+            file_count: entries.length,
+            _uploading: true,
+        };
+        pendingAttachments.push(placeholder);
+        uploadingCount++;
+        renderAttachmentPreview();
+
+        const uploadId = _makeUploadId();
+        groupTasks.push((async () => {
+            try {
+                const formData = new FormData();
+                formData.append('session_id', sessionId);
+                formData.append('upload_id', uploadId);
+                for (const { file, relPath } of entries) {
+                    formData.append('files', file);
+                    formData.append('relative_paths', relPath);
+                }
+
+                const resp = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.status !== 'success') {
+                    throw new Error(data.message || 'Upload failed');
+                }
+                if (!data.root_path) {
+                    throw new Error('Directory root path missing');
+                }
+                placeholder.file_path = data.root_path;
+                placeholder.file_name = data.root_name || rootName;
+                delete placeholder._uploading;
+            } catch (e) {
+                console.error('Directory upload failed:', e);
+                const i = pendingAttachments.indexOf(placeholder);
+                if (i !== -1) pendingAttachments.splice(i, 1);
+            } finally {
+                uploadingCount--;
+            }
+            renderAttachmentPreview();
+        })());
+    }
+
+    await Promise.all(groupTasks);
+}
+
 fileInput.addEventListener('change', function() {
     handleFileSelect(this.files);
     this.value = '';
+});
+
+folderInput.addEventListener('change', function() {
+    handleFolderSelect(this.files);
+    this.value = '';
+});
+
+document.addEventListener('click', (e) => {
+    if (!isAttachMenuVisible()) return;
+    if (attachMenu.contains(e.target) || attachBtn.contains(e.target)) return;
+    hideAttachMenu();
 });
 
 // Drag-and-drop support on chat input area
@@ -735,6 +1042,11 @@ chatInput.addEventListener('input', function() {
 chatInput.addEventListener('keydown', function(e) {
     if (e.keyCode === 229 || e.isComposing || isComposing) return;
 
+    if (e.key === 'Escape' && isAttachMenuVisible()) {
+        hideAttachMenu();
+        return;
+    }
+
     if (isSlashMenuVisible()) {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -878,6 +1190,7 @@ function sendMessage() {
             file_path: a.file_path,
             file_name: a.file_name,
             file_type: a.file_type,
+            file_count: a.file_count,
         }));
     }
 
@@ -984,17 +1297,60 @@ function startSSE(requestId, loadingEl, timestamp, titleInfo) {
                     reasoningStartTime = Date.now();
                     currentReasoningEl = document.createElement('div');
                     currentReasoningEl.className = 'agent-step agent-thinking-step';
+                    // During streaming, use a <pre> with a single text node and
+                    // append-only updates. This avoids re-parsing markdown and
+                    // re-setting innerHTML on every chunk, which is what causes
+                    // the page to crash on long chains-of-thought.
                     currentReasoningEl.innerHTML = `
                         <div class="thinking-header" onclick="this.parentElement.classList.toggle('expanded')">
                             <i class="fas fa-lightbulb text-amber-400 flex-shrink-0"></i>
                             <span class="thinking-summary">${t('thinking_in_progress')}</span>
                             <i class="fas fa-chevron-right thinking-chevron"></i>
                         </div>
-                        <div class="thinking-full"></div>`;
+                        <div class="thinking-full"><pre class="thinking-stream-pre"></pre></div>`;
                     stepsEl.appendChild(currentReasoningEl);
+                    const preEl = currentReasoningEl.querySelector('.thinking-stream-pre');
+                    preEl.appendChild(document.createTextNode(''));
+                    currentReasoningEl._streamTextNode = preEl.firstChild;
+                    currentReasoningEl._streamPendingText = '';
+                    currentReasoningEl._streamRafScheduled = false;
+                    currentReasoningEl._streamCharsRendered = 0;
+                    currentReasoningEl._streamCapped = false;
                 }
-                currentReasoningEl.querySelector('.thinking-full').innerHTML = renderMarkdown(reasoningText);
-                scrollChatToBottom();
+                // Hard cap: once REASONING_RENDER_CAP chars are in the DOM, stop
+                // appending further deltas. The full text is still kept in
+                // `reasoningText` for finalize-time head+tail rendering.
+                if (!currentReasoningEl._streamCapped) {
+                    currentReasoningEl._streamPendingText += item.content;
+                    if (!currentReasoningEl._streamRafScheduled) {
+                        currentReasoningEl._streamRafScheduled = true;
+                        const elRef = currentReasoningEl;
+                        requestAnimationFrame(() => {
+                            elRef._streamRafScheduled = false;
+                            if (!elRef.isConnected || !elRef._streamTextNode) return;
+                            let pending = elRef._streamPendingText;
+                            elRef._streamPendingText = '';
+                            if (!pending) return;
+                            const remaining = REASONING_RENDER_CAP - elRef._streamCharsRendered;
+                            if (remaining <= 0) {
+                                elRef._streamCapped = true;
+                            } else {
+                                if (pending.length > remaining) {
+                                    pending = pending.slice(0, remaining);
+                                    elRef._streamCapped = true;
+                                }
+                                elRef._streamTextNode.appendData(pending);
+                                elRef._streamCharsRendered += pending.length;
+                                if (elRef._streamCapped) {
+                                    elRef._streamTextNode.appendData(
+                                        '\n\n... [reasoning truncated for display] ...'
+                                    );
+                                }
+                            }
+                            scrollChatToBottom();
+                        });
+                    }
+                }
 
             } else if (item.type === 'delta') {
                 ensureBotEl();
@@ -1081,8 +1437,8 @@ function startSSE(requestId, loadingEl, timestamp, titleInfo) {
                 const imgEl = document.createElement('img');
                 imgEl.src = item.content;
                 imgEl.alt = 'screenshot';
-                imgEl.style.cssText = 'max-width:600px;border-radius:8px;margin:8px 0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.1);';
-                imgEl.onclick = () => window.open(item.content, '_blank');
+                imgEl.style.cssText = 'max-width:600px;border-radius:8px;margin:8px 0;cursor:zoom-in;box-shadow:0 1px 4px rgba(0,0,0,0.1);';
+                imgEl.onclick = () => _openImageLightbox(imgEl.src);
                 mediaEl.appendChild(imgEl);
                 scrollChatToBottom();
 
@@ -1246,8 +1602,13 @@ function createUserMessageEl(content, timestamp, attachments) {
             if (a.file_type === 'image') {
                 return `<img src="${a.preview_url}" alt="${escapeHtml(a.file_name)}" class="user-msg-image">`;
             }
-            const icon = a.file_type === 'video' ? 'fa-film' : 'fa-file-alt';
-            return `<div class="user-msg-file"><i class="fas ${icon}"></i> ${escapeHtml(a.file_name)}</div>`;
+            const icon = a.file_type === 'video'
+                ? 'fa-film'
+                : (a.file_type === 'directory' ? 'fa-folder-tree' : 'fa-file-alt');
+            const suffix = a.file_type === 'directory' && a.file_count
+                ? ` (${a.file_count})`
+                : '';
+            return `<div class="user-msg-file"><i class="fas ${icon}"></i> ${escapeHtml(a.file_name)}${suffix}</div>`;
         }).join('');
         attachHtml = `<div class="user-msg-attachments">${items}</div>`;
     }
@@ -1292,11 +1653,41 @@ function renderToolCallsHtml(toolCalls) {
     }).join('');
 }
 
+// Cap for rendering reasoning content in the bubble. Beyond this size,
+// we skip markdown rendering entirely and show plain text head + tail to
+// keep the page responsive (very long chains-of-thought can otherwise
+// stall or crash the browser when re-parsed by marked.js).
+// Keep this in sync with backend MAX_STORED_REASONING_CHARS and
+// MAX_REASONING_STREAM_CHARS so storage / SSE / display stay aligned.
+const REASONING_RENDER_CAP = 4 * 1024; // 4 KB
+
+function _truncateReasoningForDisplay(text) {
+    if (!text || text.length <= REASONING_RENDER_CAP) return { text, truncated: false, omitted: 0 };
+    const half = Math.floor(REASONING_RENDER_CAP / 2);
+    const head = text.slice(0, half);
+    const tail = text.slice(-half);
+    return {
+        text: head + '\n\n... [' + (text.length - head.length - tail.length) + ' chars omitted] ...\n\n' + tail,
+        truncated: true,
+        omitted: text.length - head.length - tail.length,
+    };
+}
+
+function _renderReasoningBody(text) {
+    // For short reasoning, render as markdown. For long ones, fall back to
+    // an escaped <pre> block to avoid expensive markdown parsing.
+    const { text: shown, truncated } = _truncateReasoningForDisplay(text);
+    if (truncated || shown.length > REASONING_RENDER_CAP) {
+        return '<pre class="thinking-stream-pre">' + escapeHtml(shown) + '</pre>';
+    }
+    return renderMarkdown(shown);
+}
+
 function finalizeThinking(el, startTime, text) {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     el.querySelector('.thinking-summary').textContent = t('thinking_done');
     const fullDiv = el.querySelector('.thinking-full');
-    fullDiv.innerHTML = `<div class="thinking-duration">${t('thinking_duration')} ${elapsed}s</div>` + renderMarkdown(text);
+    fullDiv.innerHTML = `<div class="thinking-duration">${t('thinking_duration')} ${elapsed}s</div>` + _renderReasoningBody(text);
 }
 
 function renderThinkingHtml(text) {
@@ -1309,7 +1700,7 @@ function renderThinkingHtml(text) {
         <span class="thinking-summary">${t('thinking_done')}</span>
         <i class="fas fa-chevron-right thinking-chevron"></i>
     </div>
-    <div class="thinking-full">${renderMarkdown(full)}</div>
+    <div class="thinking-full">${_renderReasoningBody(full)}</div>
 </div>`;
 }
 
@@ -1356,9 +1747,38 @@ function renderStepsHtml(steps) {
         </div>` : ''}
     </div>
 </div>`;
+            // If this tool sent a file (send/read tool), render the media inline
+            // so it persists across page refreshes (SSE-only file events are not stored).
+            const mediaHtml = _renderSentFileFromToolResult(step);
+            if (mediaHtml) html += mediaHtml;
         }
     }
     return { stepsHtml: html, lastContentText };
+}
+
+// Extract file-to-send metadata from a tool's result and render an inline preview.
+// Returns '' if the result isn't a file_to_send payload.
+function _renderSentFileFromToolResult(step) {
+    if (!step || !step.result) return '';
+    let payload;
+    try {
+        payload = typeof step.result === 'string' ? JSON.parse(step.result) : step.result;
+    } catch (_) { return ''; }
+    if (!payload || payload.type !== 'file_to_send' || !payload.path) return '';
+    const webUrl = _toWebUrl(payload.path);
+    const fileType = payload.file_type || 'file';
+    const fileName = payload.file_name || payload.path.split('/').pop();
+    if (fileType === 'image') {
+        return `<div class="agent-step">${_buildImageHtml(webUrl)}</div>`;
+    }
+    if (fileType === 'video') {
+        return `<div class="agent-step">${_buildVideoHtml(webUrl)}</div>`;
+    }
+    return `<div class="agent-step"><a href="${webUrl}" download="${escapeHtml(fileName)}" target="_blank" ` +
+        `style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;margin:8px 0;border-radius:8px;` +
+        `background:var(--bg-secondary,#f3f4f6);color:var(--text-primary,#374151);text-decoration:none;font-size:14px;` +
+        `border:1px solid var(--border-color,#e5e7eb);">` +
+        `<i class="fas fa-file-download" style="color:#6b7280;"></i> ${escapeHtml(fileName)}</a></div>`;
 }
 
 function createBotMessageEl(content, timestamp, requestId, msg) {
@@ -1406,7 +1826,8 @@ function createBotMessageEl(content, timestamp, requestId, msg) {
 function addUserMessage(content, timestamp, attachments) {
     const el = createUserMessageEl(content, timestamp, attachments);
     messagesDiv.appendChild(el);
-    scrollChatToBottom();
+    _autoScrollEnabled = true;
+    scrollChatToBottom(true);
 }
 
 function addBotMessage(content, timestamp, requestId) {
@@ -1499,7 +1920,7 @@ function loadHistory(page) {
             if (isFirstLoad) {
                 // Use requestAnimationFrame to ensure the DOM has fully rendered
                 // before scrolling, otherwise scrollHeight may not reflect new content.
-                requestAnimationFrame(() => scrollChatToBottom());
+                requestAnimationFrame(() => scrollChatToBottom(true));
             } else {
                 // Restore scroll position so loading older messages doesn't jump the view
                 messagesDiv.scrollTop = messagesDiv.scrollHeight - prevScrollHeight;
@@ -1717,7 +2138,7 @@ function _applyInputTooltips() {
     };
     set('new-chat-btn', 'tip_new_chat');
     set('clear-context-btn', 'tip_clear_context');
-    set('attach-btn', 'tip_attach_file');
+    set('attach-btn', 'tip_attach');
     set('session-toggle-btn', 'session_history', 'bottom');
 }
 
@@ -2017,16 +2438,26 @@ function formatToolArgs(args) {
     }
 }
 
-function scrollChatToBottom() {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+function scrollChatToBottom(force) {
+    if (force || _autoScrollEnabled) {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+}
+
+function _updateScrollToBottomBtn() {
+    const btn = document.getElementById('scroll-to-bottom-btn');
+    if (!btn) return;
+    const distFromBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight;
+    btn.classList.toggle('hidden', distFromBottom <= _SCROLL_THRESHOLD);
 }
 
 function applyHighlighting(container) {
     const root = container || document;
     setTimeout(() => {
+        const hljsLib = getHljs();
         root.querySelectorAll('pre code').forEach(block => {
             if (!block.classList.contains('hljs')) {
-                hljs.highlightElement(block);
+                hljsLib.highlightElement(block);
             }
         });
     }, 0);
@@ -2116,7 +2547,7 @@ function initConfigView(data) {
     document.getElementById('cfg-max-tokens').value = data.agent_max_context_tokens || 50000;
     document.getElementById('cfg-max-turns').value = data.agent_max_context_turns || 20;
     document.getElementById('cfg-max-steps').value = data.agent_max_steps || 20;
-    document.getElementById('cfg-enable-thinking').checked = data.enable_thinking !== false;
+    document.getElementById('cfg-enable-thinking').checked = data.enable_thinking === true;
 
     const pwdInput = document.getElementById('cfg-password');
     const maskedPwd = data.web_password_masked || '';
@@ -2211,12 +2642,17 @@ function onProviderChange(pid) {
     }
 
     // API Base
+    const apiBaseInput = document.getElementById('cfg-api-base');
     if (p.api_base_key) {
         document.getElementById('cfg-api-base-wrap').classList.remove('hidden');
-        document.getElementById('cfg-api-base').value = configApiBases[p.api_base_key] || p.api_base_default || '';
+        apiBaseInput.value = configApiBases[p.api_base_key] || p.api_base_default || '';
+        // Hint the version-path tail (e.g. /v1) so users are reminded to
+        // include it themselves. We don't auto-rewrite anything server-side.
+        apiBaseInput.placeholder = p.api_base_placeholder || 'https://...';
     } else {
         document.getElementById('cfg-api-base-wrap').classList.add('hidden');
-        document.getElementById('cfg-api-base').value = '';
+        apiBaseInput.value = '';
+        apiBaseInput.placeholder = 'https://...';
     }
 
     onModelSelectChange(modelOpts[0] ? modelOpts[0].value : '');
@@ -2749,6 +3185,8 @@ function renderActiveChannels() {
 
         const weixinWaiting = ch.name === 'weixin' && ch.login_status && ch.login_status !== 'logged_in';
         const wecomNeedsCreds = ch.name === 'wecom_bot' && !_wecomBotHasCreds(ch);
+        // 飞书 active 卡片渲染带 Tab 的 panel：手动填写 + 扫码重建（覆盖现有配置）
+        const isFeishu = ch.name === 'feishu';
         let statusDot, statusText;
         if (weixinWaiting) {
             statusDot = 'bg-amber-400 animate-pulse';
@@ -2764,7 +3202,7 @@ function renderActiveChannels() {
         }
 
         card.innerHTML = `
-            <div class="flex items-center gap-4${hasFields || weixinWaiting || wecomNeedsCreds ? ' mb-5' : ''}">
+            <div class="flex items-center gap-4${hasFields || weixinWaiting || wecomNeedsCreds || isFeishu ? ' mb-5' : ''}">
                 <div class="w-10 h-10 rounded-xl bg-${ch.color}-50 dark:bg-${ch.color}-900/20 flex items-center justify-center flex-shrink-0">
                     <i class="fas ${ch.icon} text-${ch.color}-500 text-base"></i>
                 </div>
@@ -2800,7 +3238,7 @@ function renderActiveChannels() {
                 </button>
                 <div id="wecom-card-scan-status" class="mt-3"></div>
             </div>` : ''}
-            ${hasFields ? `<div class="space-y-4">
+            ${isFeishu ? buildFeishuPanel(ch, true) : (hasFields ? `<div class="space-y-4">
                 ${fieldsHtml}
                 <div class="flex items-center justify-end gap-3 pt-1">
                     <span id="ch-status-${ch.name}" class="text-xs text-primary-500 opacity-0 transition-opacity duration-300"></span>
@@ -2809,7 +3247,7 @@ function renderActiveChannels() {
                                cursor-pointer transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                         id="ch-save-${ch.name}">${t('channels_save')}</button>
                 </div>
-            </div>` : ''}`;
+            </div>` : '')}`;
 
         container.appendChild(card);
         bindSecretFieldEvents(card);
@@ -3006,6 +3444,7 @@ function openAddChannelPanel() {
 
 function closeAddChannelPanel() {
     stopWeixinQrPoll();
+    stopFeishuRegisterPoll();
     const panel = document.getElementById('channels-add-panel');
     if (panel) {
         panel.classList.add('hidden');
@@ -3017,6 +3456,7 @@ function closeAddChannelPanel() {
 
 function onAddChannelSelect(chName) {
     stopWeixinQrPoll();
+    stopFeishuRegisterPoll();
     const fieldsContainer = document.getElementById('add-channel-fields');
     const actions = document.getElementById('add-channel-actions');
 
@@ -3040,6 +3480,13 @@ function onAddChannelSelect(chName) {
         actions.classList.add('hidden');
         const ch = channelsData.find(c => c.name === chName);
         fieldsContainer.innerHTML = buildWecomBotPanel(ch);
+        return;
+    }
+
+    if (chName === 'feishu') {
+        actions.classList.add('hidden');
+        const ch = channelsData.find(c => c.name === chName);
+        fieldsContainer.innerHTML = buildFeishuPanel(ch);
         return;
     }
 
@@ -3267,6 +3714,12 @@ function connectWeixinAfterQr() {
 // =====================================================================
 // WeCom Bot QR Auth
 // =====================================================================
+// NOTE: This is the only remaining external script in the Web Console.
+// Tencent's WeCom Bot SDK must be loaded from their official CDN — it
+// performs runtime origin/signature checks and will not work if
+// self-hosted. The SDK is fetched lazily, only when the user opens the
+// "WeCom Bot" channel QR-login flow, so the rest of the console works
+// fully offline.
 const WECOM_BOT_SDK_URL = 'https://wwcdn.weixin.qq.com/node/wework/js/wecom-aibot-sdk@0.1.0.min.js';
 const WECOM_BOT_SOURCE = 'cowagent';
 let _wecomSdkLoaded = false;
@@ -3440,14 +3893,245 @@ function startWecomBotAuthInCard() {
 // Initialize wecom bot panel with correct default mode when inserted into DOM
 document.addEventListener('DOMContentLoaded', function() {
     const observer = new MutationObserver(function() {
-        const panel = document.getElementById('wecom-bot-panel');
-        if (panel && !panel.dataset.initialized) {
-            panel.dataset.initialized = '1';
-            switchWecomBotMode(panel.dataset.defaultMode || 'scan');
+        const wecomPanel = document.getElementById('wecom-bot-panel');
+        if (wecomPanel && !wecomPanel.dataset.initialized) {
+            wecomPanel.dataset.initialized = '1';
+            switchWecomBotMode(wecomPanel.dataset.defaultMode || 'scan');
+        }
+        const feishuPanel = document.getElementById('feishu-panel');
+        if (feishuPanel && !feishuPanel.dataset.initialized) {
+            feishuPanel.dataset.initialized = '1';
+            switchFeishuMode(feishuPanel.dataset.defaultMode || 'scan');
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 });
+
+// =====================================================================
+// Feishu One-click App Registration (lark-oapi register_app)
+// =====================================================================
+let _feishuRegisterPollTimer = null;
+
+function _feishuHasCreds(ch) {
+    if (!ch || !ch.fields) return false;
+    const idField = ch.fields.find(f => f.key === 'feishu_app_id');
+    const secretField = ch.fields.find(f => f.key === 'feishu_app_secret');
+    return !!(idField && idField.value && secretField && secretField.value);
+}
+
+function buildFeishuPanel(ch, isActive) {
+    const scanLabel = t('feishu_mode_scan');
+    const manualLabel = t('feishu_mode_manual');
+    // 已有凭据时默认进入手动 Tab，方便修改；否则推荐扫码
+    const defaultMode = _feishuHasCreds(ch) ? 'manual' : 'scan';
+    const activeAttr = isActive ? 'data-active="1"' : '';
+    return `
+        <div id="feishu-panel" data-default-mode="${defaultMode}" ${activeAttr}>
+            <div class="flex items-center justify-center gap-1 mb-5 bg-slate-100 dark:bg-white/5 rounded-lg p-1">
+                <button id="feishu-tab-scan" onclick="switchFeishuMode('scan')"
+                    class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+                           bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm">
+                    ${scanLabel}
+                </button>
+                <button id="feishu-tab-manual" onclick="switchFeishuMode('manual')"
+                    class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+                           text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    ${manualLabel}
+                </button>
+            </div>
+            <div id="feishu-mode-content"></div>
+        </div>`;
+}
+
+function switchFeishuMode(mode) {
+    const panel = document.getElementById('feishu-panel');
+    const scanTab = document.getElementById('feishu-tab-scan');
+    const manualTab = document.getElementById('feishu-tab-manual');
+    const content = document.getElementById('feishu-mode-content');
+    if (!scanTab || !manualTab || !content) return;
+
+    // 已激活通道卡片中嵌入此 panel 时，没有 add-channel-actions（保存按钮就近渲染）
+    const isActive = panel && panel.dataset.active === '1';
+    const actions = isActive ? null : document.getElementById('add-channel-actions');
+
+    const activeClasses = 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm';
+    const inactiveClasses = 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200';
+
+    stopFeishuRegisterPoll();
+
+    if (mode === 'scan') {
+        scanTab.className = `flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeClasses}`;
+        manualTab.className = `flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${inactiveClasses}`;
+        if (actions) actions.classList.add('hidden');
+        // active 卡片下扫码替换的提示文案，强调"创建新机器人会覆盖现有配置"
+        const desc = isActive
+            ? t('feishu_scan_replace_desc')
+            : t('feishu_scan_desc');
+        content.innerHTML = `
+            <div id="feishu-scan-panel" class="flex flex-col items-center py-4">
+                <p class="text-sm text-slate-600 dark:text-slate-300 mb-3 text-center">${desc}</p>
+                <button onclick="startFeishuRegister()"
+                    class="mt-2 px-6 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium
+                           cursor-pointer transition-colors duration-150">
+                    <i class="fas fa-qrcode mr-2"></i>${t('feishu_scan_btn')}
+                </button>
+                <div id="feishu-scan-status" class="mt-4 w-full"></div>
+            </div>`;
+    } else {
+        manualTab.className = `flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeClasses}`;
+        scanTab.className = `flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${inactiveClasses}`;
+        const ch = channelsData.find(c => c.name === 'feishu');
+        const fieldsHtml = buildChannelFieldsHtml('feishu', ch ? ch.fields || [] : []);
+        if (isActive) {
+            // 已接入卡片：内置保存按钮，复用 saveChannelConfig 走 update 流程
+            content.innerHTML = `
+                <div class="space-y-4">
+                    ${fieldsHtml}
+                    <div class="flex items-center justify-end gap-3 pt-1">
+                        <span id="ch-status-feishu" class="text-xs text-primary-500 opacity-0 transition-opacity duration-300"></span>
+                        <button onclick="saveChannelConfig('feishu')"
+                            class="px-4 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium
+                                   cursor-pointer transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            id="ch-save-feishu">${t('channels_save')}</button>
+                    </div>
+                </div>`;
+        } else {
+            content.innerHTML = `<div class="space-y-4">${fieldsHtml}</div>`;
+            if (actions) actions.classList.remove('hidden');
+        }
+        bindSecretFieldEvents(content);
+    }
+}
+
+function stopFeishuRegisterPoll() {
+    if (_feishuRegisterPollTimer) {
+        clearTimeout(_feishuRegisterPollTimer);
+        _feishuRegisterPollTimer = null;
+    }
+}
+
+function startFeishuRegister(targetStatusId) {
+    const statusId = targetStatusId || 'feishu-scan-status';
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) {
+        statusEl.innerHTML = `<p class="text-sm text-slate-500 dark:text-slate-400 text-center">${t('feishu_scan_loading')}</p>`;
+    }
+    stopFeishuRegisterPoll();
+    fetch('/api/feishu/register')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                renderFeishuRegisterError(statusId, data.message || t('feishu_scan_fail'));
+                return;
+            }
+            renderFeishuQr(statusId, data.qr_image, data.qrcode_url);
+            pollFeishuRegisterStatus(statusId);
+        })
+        .catch(err => {
+            renderFeishuRegisterError(statusId, err.message || t('feishu_scan_fail'));
+        });
+}
+
+function renderFeishuQr(statusId, qrImage, qrUrl) {
+    const statusEl = document.getElementById(statusId);
+    if (!statusEl) return;
+    const imgHtml = qrImage
+        ? `<img src="${qrImage}" alt="QR" class="w-44 h-44 rounded-lg border border-slate-200 dark:border-white/10 bg-white p-2"/>`
+        : `<div class="w-44 h-44 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400">QR</div>`;
+    statusEl.innerHTML = `
+        <div class="flex flex-col items-center gap-3">
+            ${imgHtml}
+            <p class="text-xs text-amber-500">${t('feishu_scan_waiting')}</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">${t('feishu_scan_tip')}</p>
+            ${qrUrl ? `<a href="${qrUrl}" target="_blank" rel="noopener"
+                class="text-xs text-blue-500 hover:text-blue-600 underline">${t('feishu_scan_open_link')}</a>` : ''}
+        </div>`;
+}
+
+function renderFeishuRegisterError(statusId, message) {
+    const statusEl = document.getElementById(statusId);
+    if (!statusEl) return;
+    statusEl.innerHTML = `
+        <div class="flex flex-col items-center gap-2 py-2">
+            <p class="text-sm text-red-500 text-center">${message}</p>
+            <button onclick="startFeishuRegister('${statusId}')"
+                class="mt-1 px-4 py-1.5 rounded-md text-xs font-medium
+                       bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200
+                       hover:bg-slate-200 dark:hover:bg-white/20 cursor-pointer">
+                <i class="fas fa-rotate-right mr-1"></i>${t('feishu_scan_retry')}
+            </button>
+        </div>`;
+}
+
+function pollFeishuRegisterStatus(statusId) {
+    stopFeishuRegisterPoll();
+    _feishuRegisterPollTimer = setTimeout(() => {
+        fetch('/api/feishu/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'poll' })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                renderFeishuRegisterError(statusId, data.message || t('feishu_scan_fail'));
+                return;
+            }
+            const rs = data.register_status;
+            if (rs === 'done') {
+                const statusEl = document.getElementById(statusId);
+                if (statusEl) {
+                    statusEl.innerHTML = `
+                        <div class="flex flex-col items-center py-2">
+                            <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center mb-2">
+                                <i class="fas fa-check text-emerald-500 text-lg"></i>
+                            </div>
+                            <p class="text-sm font-medium text-emerald-600 dark:text-emerald-400">${t('feishu_scan_success')}</p>
+                        </div>`;
+                }
+                connectFeishuAfterRegister(data.app_id, data.app_secret);
+            } else if (rs === 'expired') {
+                renderFeishuRegisterError(statusId, t('feishu_scan_expired'));
+            } else if (rs === 'denied') {
+                renderFeishuRegisterError(statusId, t('feishu_scan_denied'));
+            } else if (rs === 'error') {
+                renderFeishuRegisterError(statusId, data.message || t('feishu_scan_fail'));
+            } else {
+                pollFeishuRegisterStatus(statusId);
+            }
+        })
+        .catch(() => {
+            pollFeishuRegisterStatus(statusId);
+        });
+    }, 2000);
+}
+
+function connectFeishuAfterRegister(appId, appSecret) {
+    fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'connect',
+            channel: 'feishu',
+            config: { feishu_app_id: appId, feishu_app_secret: appSecret }
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const ch = channelsData.find(c => c.name === 'feishu');
+            if (ch) {
+                ch.active = true;
+                (ch.fields || []).forEach(f => {
+                    if (f.key === 'feishu_app_id') f.value = appId;
+                    if (f.key === 'feishu_app_secret') f.value = ChannelsHandler_maskSecret(appSecret);
+                });
+            }
+            setTimeout(() => renderActiveChannels(), 1500);
+        }
+    })
+    .catch(() => {});
+}
 
 // =====================================================================
 // Scheduler View
@@ -3504,6 +4188,51 @@ function loadTasksView() {
 // =====================================================================
 let logEventSource = null;
 
+function logLevelClass(line) {
+    if (/\[CRITICAL\]/.test(line)) return 'log-line-critical';
+    if (/\[ERROR\]/.test(line))    return 'log-line-error';
+    if (/\[WARNING\]/.test(line))  return 'log-line-warning';
+    if (/\[INFO\]/.test(line))     return 'log-line-info';
+    if (/\[DEBUG\]/.test(line))    return 'log-line-debug';
+    return '';
+}
+
+function getHiddenLevels() {
+    const hidden = new Set();
+    document.querySelectorAll('.log-filter-cb').forEach(function(cb) {
+        if (!cb.checked) hidden.add('log-line-' + cb.dataset.level);
+    });
+    return hidden;
+}
+
+function applyLogFilter() {
+    const hidden = getHiddenLevels();
+    document.querySelectorAll('#log-output .log-line').forEach(function(span) {
+        const level = span.classList[1] || '';
+        span.style.display = hidden.has(level) ? 'none' : '';
+    });
+}
+
+function appendLogLines(output, text) {
+    const hidden = getHiddenLevels();
+    let lastLevelClass = '';
+    const lines = text.split('\n');
+    lines.forEach(function(line, i) {
+        if (i === lines.length - 1 && line === '') return;
+        const span = document.createElement('span');
+        const levelClass = logLevelClass(line) || lastLevelClass;
+        if (logLevelClass(line)) lastLevelClass = levelClass;
+        span.className = 'log-line ' + levelClass;
+        span.textContent = line + '\n';
+        if (hidden.has(levelClass)) span.style.display = 'none';
+        output.appendChild(span);
+    });
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('log-filter-cb')) applyLogFilter();
+});
+
 function startLogStream() {
     if (logEventSource) return;
     const output = document.getElementById('log-output');
@@ -3515,10 +4244,11 @@ function startLogStream() {
         try { item = JSON.parse(e.data); } catch (_) { return; }
 
         if (item.type === 'init') {
-            output.textContent = item.content || '';
+            output.innerHTML = '';
+            appendLogLines(output, item.content || '');
             output.scrollTop = output.scrollHeight;
         } else if (item.type === 'line') {
-            output.textContent += item.content;
+            appendLogLines(output, item.content);
             output.scrollTop = output.scrollHeight;
         } else if (item.type === 'error') {
             output.textContent = item.message || 'Error loading logs';
@@ -3565,6 +4295,7 @@ navigateTo = function(viewId) {
 // Knowledge View
 // =====================================================================
 let _knowledgeTreeData = [];
+let _knowledgeRootFiles = [];
 let _knowledgeCurrentFile = null;
 let _knowledgeGraphLoaded = false;
 
@@ -3582,7 +4313,9 @@ function loadKnowledgeView() {
         const statsEl = document.getElementById('knowledge-stats');
 
         const tree = data.tree || [];
+        const rootFiles = data.root_files || [];
         _knowledgeTreeData = tree;
+        _knowledgeRootFiles = rootFiles;
         const stats = data.stats || {};
         const totalPages = stats.pages || 0;
         const sizeStr = stats.size < 1024 ? stats.size + ' B' : (stats.size / 1024).toFixed(1) + ' KB';
@@ -3600,14 +4333,17 @@ function loadKnowledgeView() {
         emptyEl.classList.add('hidden');
         docsPanel.classList.remove('hidden');
 
-        renderKnowledgeTree(tree);
+        renderKnowledgeTree(tree, rootFiles);
 
         // Auto-select the first file (desktop only)
         if (window.innerWidth >= 768) {
-            const firstGroup = tree.find(g => g.files && g.files.length > 0);
-            if (firstGroup) {
-                const firstFile = firstGroup.files[0];
-                openKnowledgeFile(firstGroup.dir + '/' + firstFile.name, firstFile.title);
+            const firstFile = rootFiles.length > 0 ? rootFiles[0] : null;
+            const firstGroup = !firstFile ? tree.find(g => g.files && g.files.length > 0) : null;
+            if (firstFile) {
+                openKnowledgeFile(firstFile.name, firstFile.title);
+            } else if (firstGroup) {
+                const gf = firstGroup.files[0];
+                openKnowledgeFile(firstGroup.dir + '/' + gf.name, gf.title);
             }
         } else {
             document.getElementById('knowledge-content-placeholder').classList.add('hidden');
@@ -3616,10 +4352,26 @@ function loadKnowledgeView() {
     }).catch(() => {});
 }
 
-function renderKnowledgeTree(tree, filter) {
+function renderKnowledgeTree(tree, rootFilesOrFilter, filter) {
     const container = document.getElementById('knowledge-tree');
     container.innerHTML = '';
-    const lowerFilter = (filter || '').toLowerCase();
+    let rootFiles, lowerFilter;
+    if (typeof rootFilesOrFilter === 'string') {
+        rootFiles = _knowledgeRootFiles;
+        lowerFilter = (rootFilesOrFilter || '').toLowerCase();
+    } else {
+        rootFiles = rootFilesOrFilter || _knowledgeRootFiles;
+        lowerFilter = (filter || '').toLowerCase();
+    }
+    (rootFiles || []).forEach(f => {
+        if (lowerFilter && !f.title.toLowerCase().includes(lowerFilter) && !f.name.toLowerCase().includes(lowerFilter)) return;
+        const fbtn = document.createElement('button');
+        fbtn.className = 'knowledge-tree-file' + (_knowledgeCurrentFile === f.name ? ' active' : '');
+        fbtn.dataset.path = f.name;
+        fbtn.innerHTML = `<i class="fas fa-file-lines text-[10px] text-slate-400"></i><span class="truncate">${escapeHtml(f.title)}</span>`;
+        fbtn.onclick = () => openKnowledgeFile(f.name, f.title);
+        container.appendChild(fbtn);
+    });
     _renderKnowledgeGroups(container, tree, '', lowerFilter, 0);
 }
 
@@ -3684,7 +4436,7 @@ function _countFiles(group) {
 }
 
 function filterKnowledgeTree(query) {
-    renderKnowledgeTree(_knowledgeTreeData, query);
+    renderKnowledgeTree(_knowledgeTreeData, _knowledgeRootFiles, query);
 }
 
 function resolveKnowledgePath(currentFilePath, relativeHref) {
@@ -3763,6 +4515,9 @@ function bindChatKnowledgeLinks(container) {
 }
 
 function _findKnowledgeFileByName(filename) {
+    for (const f of _knowledgeRootFiles) {
+        if (f.name === filename) return { path: f.name, title: f.title };
+    }
     return _searchFileInGroups(_knowledgeTreeData, '', filename);
 }
 
@@ -3832,18 +4587,38 @@ function switchKnowledgeTab(tab) {
     }
 }
 
+let _d3LoadPromise = null;
+
+function ensureD3Loaded() {
+    if (window.d3) return Promise.resolve(window.d3);
+    if (_d3LoadPromise) return _d3LoadPromise;
+    _d3LoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'assets/vendor/d3/d3.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.d3);
+        script.onerror = () => reject(new Error('Failed to load d3'));
+        document.head.appendChild(script);
+    });
+    return _d3LoadPromise;
+}
+
 function loadKnowledgeGraph() {
     _knowledgeGraphLoaded = true;
     const container = document.getElementById('knowledge-graph-container');
-    container.innerHTML = '';
+    container.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading graph...</div>';
 
-    fetch('/api/knowledge/graph').then(r => r.json()).then(data => {
+    Promise.all([
+        ensureD3Loaded(),
+        fetch('/api/knowledge/graph').then(r => r.json()),
+    ]).then(([, data]) => {
         const nodes = data.nodes || [];
         const links = data.links || [];
         if (nodes.length === 0) {
             container.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-400"><i class="fas fa-diagram-project text-3xl mb-3 opacity-40"></i><p class="text-sm">${t('knowledge_empty_hint')}</p></div>`;
             return;
         }
+        container.innerHTML = '';
         renderKnowledgeGraph(container, nodes, links);
     }).catch(() => {
         container.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm">Failed to load graph</div>';
@@ -4099,7 +4874,10 @@ function initApp() {
     _restoreSessionPanel();
 
     fetch('/api/knowledge/list').then(r => r.json()).then(data => {
-        if (data.status === 'success') _knowledgeTreeData = data.tree || [];
+        if (data.status === 'success') {
+            _knowledgeTreeData = data.tree || [];
+            _knowledgeRootFiles = data.root_files || [];
+        }
     }).catch(() => {});
 
     fetch('/api/version').then(r => r.json()).then(data => {

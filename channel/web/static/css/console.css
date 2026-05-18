@@ -509,6 +509,22 @@
     color: #b0b8c4;
     margin-bottom: 0.375rem;
 }
+/* Streaming reasoning: render as plain pre to avoid expensive markdown
+   re-parsing on every chunk. Wrap long lines so the bubble width is
+   respected and use the same font size/color as the rendered version. */
+.agent-thinking-step .thinking-stream-pre {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.5;
+    color: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
 
 /* Content step - real text output frozen before tool calls */
 .agent-content-step {
@@ -589,6 +605,14 @@
     color: inherit;
 }
 .tool-error-text { color: #f87171; }
+
+/* Log level highlighting */
+.log-line { display: block; }
+.log-line-debug    { color: #94a3b8; }
+.log-line-info     { background-color: rgba(59, 130, 246, 0.08); }
+.log-line-warning  { background-color: rgba(234, 179, 8, 0.15); color: #fde68a; }
+.log-line-error    { background-color: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.log-line-critical { background-color: rgba(239, 68, 68, 0.35); color: #ff4444; font-weight: bold;  }
 
 /* Tool failed state */
 .agent-tool-step.tool-failed .tool-name { color: #f87171; }
@@ -723,6 +747,46 @@
     padding: 8px 0;
 }
 .attachment-preview.hidden { display: none; }
+
+.attach-menu {
+    position: absolute;
+    left: 72px;
+    bottom: calc(100% + 6px);
+    min-width: 148px;
+    padding: 6px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.1), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+    z-index: 55;
+    animation: slashMenuIn 0.15s ease-out;
+}
+.attach-menu.hidden { display: none; }
+.attach-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #334155;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    text-align: left;
+}
+.attach-menu-item:hover {
+    background: #EDFDF3;
+    color: #228547;
+}
+.attach-menu-item i {
+    width: 14px;
+    text-align: center;
+    color: #64748b;
+}
+.attach-menu-item:hover i { color: inherit; }
 
 .att-thumb {
     position: relative;
@@ -902,6 +966,22 @@
     color: #64748b;
 }
 
+.dark .attach-menu {
+    background: #1A1A1A;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.35), 0 2px 8px -2px rgba(0, 0, 0, 0.15);
+}
+.dark .attach-menu-item {
+    color: #e2e8f0;
+}
+.dark .attach-menu-item i {
+    color: #94a3b8;
+}
+.dark .attach-menu-item:hover {
+    background: rgba(74, 190, 110, 0.1);
+    color: #4ABE6E;
+}
+
 /* ============================================================
    Knowledge View
    ============================================================ */
@@ -1052,12 +1132,10 @@
 }
 .cfg-tip:hover { color: #64748b; }
 .dark .cfg-tip:hover { color: #cbd5e1; }
-.cfg-tip::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 6px);
-    transform: translateX(-50%);
+/* Floating tooltip portal — appended to <body> by JS so it isn't clipped
+   by overflow:hidden ancestors. */
+.cfg-tip-floating {
+    position: fixed;
     padding: 6px 10px;
     border-radius: 8px;
     font-size: 12px;
@@ -1070,13 +1148,13 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s;
-    z-index: 50;
+    z-index: 9999;
 }
-.dark .cfg-tip::after {
+.dark .cfg-tip-floating {
     background: #334155;
     color: #f1f5f9;
 }
-.cfg-tip:hover::after {
+.cfg-tip-floating.show {
     opacity: 1;
 }
 

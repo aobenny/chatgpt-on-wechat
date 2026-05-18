@@ -8,11 +8,11 @@ This includes: OpenAI, LinkAI, Azure OpenAI, and many third-party providers.
 """
 
 import json
-import openai
 import requests
 from typing import Optional
 from common.log import logger
 from agent.protocol.message_utils import drop_orphaned_tool_results_openai
+from models.openai.openai_http_client import OpenAIHTTPClient, OpenAIHTTPError
 
 
 class OpenAICompatibleBot:
@@ -135,49 +135,87 @@ class OpenAICompatibleBot:
                     "status_code": 500
                 }
     
+    def _get_http_client(self) -> OpenAIHTTPClient:
+        """Build an HTTP client honoring the global proxy config.
+
+        Subclasses can override this for custom auth headers (e.g. Azure's
+        ``api-key`` header) by returning a pre-configured client.
+        """
+        from config import conf
+        proxy = conf().get("proxy") or None
+        return OpenAIHTTPClient(proxy=proxy)
+
     def _handle_sync_response(self, request_params, api_key, api_base):
-        """Handle synchronous OpenAI API response"""
+        """Handle synchronous chat-completion via HTTP."""
+        params = dict(request_params)
+        params.pop("stream", None)
+        # Translate legacy SDK timeout kwarg to our HTTP client kwarg.
+        timeout = params.pop("request_timeout", None) or params.pop("timeout", None)
         try:
-            # Build kwargs with explicit API configuration
-            kwargs = dict(request_params)
-            if api_key:
-                kwargs["api_key"] = api_key
-            if api_base:
-                kwargs["api_base"] = api_base
-            
-            response = openai.ChatCompletion.create(**kwargs)
-            return response
-            
+            client = self._get_http_client()
+            return client.chat_completions(
+                api_key=api_key,
+                api_base=api_base,
+                timeout=timeout,
+                stream=False,
+                **params,
+            )
+        except OpenAIHTTPError as e:
+            logger.error(
+                f"[{self.__class__.__name__}] sync response error: "
+                f"HTTP {e.status_code}: {e.message}"
+            )
+            return {
+                "error": True,
+                "message": e.message,
+                "status_code": e.status_code or 500,
+            }
         except Exception as e:
             logger.error(f"[{self.__class__.__name__}] sync response error: {e}")
             return {
                 "error": True,
                 "message": str(e),
-                "status_code": 500
+                "status_code": 500,
             }
-    
+
     def _handle_stream_response(self, request_params, api_key, api_base):
-        """Handle streaming OpenAI API response"""
+        """Handle streaming chat-completion via HTTP (SSE).
+
+        Yields dict chunks in OpenAI's standard streaming shape:
+          {"choices": [{"delta": {...}, "finish_reason": ...}], ...}
+        On error, yields a single ``{"error": ..., "status_code": ...}`` chunk
+        — the same contract :mod:`agent.protocol.agent_stream` already handles.
+        """
+        params = dict(request_params)
+        params.pop("stream", None)
+        timeout = params.pop("request_timeout", None) or params.pop("timeout", None)
         try:
-            # Build kwargs with explicit API configuration
-            kwargs = dict(request_params)
-            if api_key:
-                kwargs["api_key"] = api_key
-            if api_base:
-                kwargs["api_base"] = api_base
-            
-            stream = openai.ChatCompletion.create(**kwargs)
-            
-            # Stream chunks to caller
+            client = self._get_http_client()
+            stream = client.chat_completions(
+                api_key=api_key,
+                api_base=api_base,
+                timeout=timeout,
+                stream=True,
+                **params,
+            )
             for chunk in stream:
                 yield chunk
-                
+        except OpenAIHTTPError as e:
+            logger.error(
+                f"[{self.__class__.__name__}] stream response error: "
+                f"HTTP {e.status_code}: {e.message}"
+            )
+            yield {
+                "error": True,
+                "message": e.message,
+                "status_code": e.status_code or 500,
+            }
         except Exception as e:
             logger.error(f"[{self.__class__.__name__}] stream response error: {e}")
             yield {
                 "error": True,
                 "message": str(e),
-                "status_code": 500
+                "status_code": 500,
             }
     
     def _convert_tools_to_openai_format(self, tools):
@@ -211,24 +249,49 @@ class OpenAICompatibleBot:
     def _convert_messages_to_openai_format(self, messages):
         """
         Convert messages from Claude format to OpenAI format
-        
-        Claude uses content blocks with types like 'tool_use', 'tool_result'
-        OpenAI uses 'tool_calls' in assistant messages and 'tool' role for results
+
+        Claude content blocks (tool_use / tool_result / thinking) → OpenAI
+        tool_calls / tool role / reasoning_content. Some thinking-mode
+        providers require reasoning_content on assistant messages after a
+        tool_call appears in history; back-fill with empty string when the
+        trace was not captured.
         """
         if not messages:
             return []
-        
+
+        # Detect any prior tool-call turn — gates reasoning_content back-fill below.
+        has_tool_call_history = False
+        for msg in messages:
+            if msg.get("role") != "assistant":
+                continue
+            if msg.get("tool_calls"):
+                has_tool_call_history = True
+                break
+            inner = msg.get("content")
+            if isinstance(inner, list) and any(
+                isinstance(b, dict) and b.get("type") == "tool_use" for b in inner
+            ):
+                has_tool_call_history = True
+                break
+
         openai_messages = []
-        
+
         for msg in messages:
             role = msg.get("role")
             content = msg.get("content")
-            
+
             # Handle string content (already in correct format)
             if isinstance(content, str):
-                openai_messages.append(msg)
+                if (role == "assistant" and has_tool_call_history
+                        and isinstance(msg, dict)
+                        and "reasoning_content" not in msg):
+                    patched = dict(msg)
+                    patched["reasoning_content"] = ""
+                    openai_messages.append(patched)
+                else:
+                    openai_messages.append(msg)
                 continue
-            
+
             # Handle list content (Claude format with content blocks)
             if isinstance(content, list):
                 # Check if this is a tool result message (user role with tool_result blocks)
@@ -267,14 +330,17 @@ class OpenAICompatibleBot:
 
                 # Check if this is an assistant message with tool_use blocks
                 elif role == "assistant":
-                    # Separate text content and tool_use blocks
                     text_parts = []
                     tool_calls = []
+                    reasoning_parts = []
 
                     for block in content:
-                        if block.get("type") == "text":
+                        if not isinstance(block, dict):
+                            continue
+                        btype = block.get("type")
+                        if btype == "text":
                             text_parts.append(block.get("text", ""))
-                        elif block.get("type") == "tool_use":
+                        elif btype == "tool_use":
                             tool_id = block.get("id") or ""
                             if not tool_id:
                                 logger.warning(f"[OpenAICompatible] tool_use missing id for '{block.get('name')}'")
@@ -286,6 +352,8 @@ class OpenAICompatibleBot:
                                     "arguments": json.dumps(block.get("input", {}))
                                 }
                             })
+                        elif btype == "thinking":
+                            reasoning_parts.append(block.get("thinking", ""))
 
                     # Build OpenAI format assistant message
                     openai_msg = {
@@ -295,6 +363,13 @@ class OpenAICompatibleBot:
 
                     if tool_calls:
                         openai_msg["tool_calls"] = tool_calls
+
+                    # Round-trip reasoning_content; empty string when missing
+                    # after a tool-call turn keeps strict providers happy.
+                    if reasoning_parts:
+                        openai_msg["reasoning_content"] = "\n".join(reasoning_parts)
+                    elif has_tool_call_history:
+                        openai_msg["reasoning_content"] = ""
 
                     if msg.get("_gemini_raw_parts"):
                         openai_msg["_gemini_raw_parts"] = msg["_gemini_raw_parts"]

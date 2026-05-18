@@ -316,6 +316,7 @@ class CowCliPlugin(Plugin):
         "agent_max_context_turns",
         "agent_max_steps",
         "knowledge",
+        "enable_thinking",
     }
 
     _CONFIG_READABLE = _CONFIG_WRITABLE | {"channel_type"}
@@ -357,7 +358,7 @@ class CowCliPlugin(Plugin):
         return f"⚙️ {key}: {val}"
 
     def _config_set(self, key: str, value_str: str) -> str:
-        from config import conf, load_config
+        from config import conf, load_config, available_setting
         import json as _json
 
         if key not in self._CONFIG_WRITABLE:
@@ -399,6 +400,22 @@ class CowCliPlugin(Plugin):
         except Exception as e:
             return f"写入 config.json 失败: {e}"
 
+        # Sync updated values to environment variables so that load_config()
+        # won't overwrite the new value with a stale env var (common in Docker).
+        # Match env var keys case-insensitively (Docker compose typically uses
+        # upper-case like MODEL, but lower-case is also possible).
+        synced_envs = {}
+        for k, v in updates.items():
+            if k not in available_setting:
+                continue
+            str_val = str(v)
+            k_lower = k.lower()
+            for env_key in list(os.environ):
+                if env_key.lower() == k_lower:
+                    os.environ[env_key] = str_val
+                    synced_envs[env_key] = str_val
+        logger.info(f"[CowCli] config update: {updates}, synced envs: {synced_envs}")
+
         try:
             load_config()
         except Exception as e:
@@ -411,11 +428,12 @@ class CowCliPlugin(Plugin):
 
     @staticmethod
     def _resolve_bot_type_for_model(model_name: str) -> str:
-        """Resolve bot_type from model name, reusing AgentBridge mapping."""
+        """Resolve bot_type from model name, matching AgentBridge mapping."""
         from common import const
         _EXACT = {
             "wenxin": const.BAIDU, "wenxin-4": const.BAIDU,
             "xunfei": const.XUNFEI, const.QWEN: const.QWEN_DASHSCOPE,
+            const.QIANFAN: const.QIANFAN,
             const.MODELSCOPE: const.MODELSCOPE,
             const.MOONSHOT: const.MOONSHOT,
             "moonshot-v1-8k": const.MOONSHOT, "moonshot-v1-32k": const.MOONSHOT,
@@ -428,6 +446,7 @@ class CowCliPlugin(Plugin):
             ("claude", const.CLAUDEAPI),
             ("moonshot", const.MOONSHOT), ("kimi", const.MOONSHOT),
             ("doubao", const.DOUBAO), ("deepseek", const.DEEPSEEK),
+            ("ernie", const.QIANFAN),
         ]
         if not model_name:
             return const.OPENAI
@@ -437,8 +456,9 @@ class CowCliPlugin(Plugin):
             return const.MiniMax
         if model_name in [const.QWEN_TURBO, const.QWEN_PLUS, const.QWEN_MAX]:
             return const.QWEN_DASHSCOPE
+        lowered_model = model_name.lower()
         for prefix, btype in _PREFIX:
-            if model_name.startswith(prefix):
+            if lowered_model.startswith(prefix):
                 return btype
         return const.OPENAI
 
@@ -523,8 +543,22 @@ class CowCliPlugin(Plugin):
                 "  disable <名称>   禁用技能"
             )
 
+    def _refresh_skill_manager(self):
+        """Re-scan skill directories so skills_config.json reflects disk state."""
+        try:
+            from bridge.bridge import Bridge
+            bridge = Bridge()
+            agent_bridge = bridge.get_agent_bridge()
+            for agent in [agent_bridge.default_agent] + list(agent_bridge.agents.values()):
+                if agent and hasattr(agent, 'skill_manager') and agent.skill_manager:
+                    agent.skill_manager.refresh_skills()
+                    break
+        except Exception as e:
+            logger.debug(f"[CowCli] skill refresh skipped: {e}")
+
     def _skill_list_local(self) -> str:
         from cli.utils import load_skills_config, get_skills_dir, get_builtin_skills_dir
+        self._refresh_skill_manager()
         config = load_skills_config()
 
         if not config:
